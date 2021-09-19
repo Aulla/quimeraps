@@ -2,7 +2,7 @@
 
 import sys
 import logging
-from json_srv import main as main_json
+from json_srv import main_service
 
 
 VERSION = "0.0.1"
@@ -12,7 +12,7 @@ def startup() -> bool:
     """Initializa servers."""
 
     LOGGER.warning("Quimera-ps service v.%s" % (VERSION))
-    main_json.JsonClass() 
+    main_service.JsonClass() 
     LOGGER.warning("\nBye!")
 
 if __name__ == "__main__":
