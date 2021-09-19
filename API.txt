@@ -1,0 +1,7 @@
+{"type": "data", "arguments" : {"table": "printers", "mode": "select", "pk" : "*" }}
+
+
+
+
+{"type": "alive", "arguments" : {} }
+{"type": "new_job", "arguments" : {"printer": "ticket_1", "model": "model_1", "cut" : true, "open_cash_drawer" : true, "data": []} }
