@@ -1,5 +1,5 @@
 {"type": "data", "arguments" : {"table": "printers", "mode": "select", "pk" : "*" }}
-
+{"type": "data", "arguments" : { "mode": "raw", "raw" : "SELECT 1", "with_response" : 1}}
 
 
 
