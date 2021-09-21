@@ -36,9 +36,9 @@ class SQLiteClass:
     def generateTables(self):
         LOGGER.warning("Making tables.")
         cursor = self._connection.cursor()
-        cursor.execute("CREATE TABLE printers (alias TEXT, name TEXT, cut TEXT, cash_drawer TEXT)")
-        cursor.execute("CREATE TABLE models (alias TEXT, name TEXT, copies INTEGER)")
-        cursor.execute("CREATE TABLE history (client_id TEXT, timestamp DATETIME, data_request JSON, data_response JSON)")
+        cursor.execute("CREATE TABLE printers (alias TEXT PRIMARY KEY, name TEXT, cut TEXT, cash_drawer TEXT)")
+        cursor.execute("CREATE TABLE models (alias TEXT PRIMARY KEY, name TEXT, copies INTEGER)")
+        cursor.execute("CREATE TABLE history (id INTEGER PRIMARY KEY, client_id TEXT, timestamp DATETIME, data_request JSON, data_response JSON)")
     
     def executeQuery(self, query: str):
         return self._connection.cursor().execute(query)
