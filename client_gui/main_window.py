@@ -1,36 +1,196 @@
-from PyQt6 import QtWidgets, QtCore
+from PyQt6 import QtWidgets, QtCore, QtGui, uic
 import logging, requests, json
-from typing import Any
+import os
+
+from typing import Any, List
+
 
 LOGGER = logging.getLogger(__name__)
 
 class MainWindow(QtWidgets.QMainWindow):
 
     _status_label : "QtWidgets.QLabel"
-    _status_server_ok : bool # indica si el servidor está activo
+    _version_label : "QtWidgets.QLabel"
+    _status_server_ok : str # indica si el servidor está activo
     _timer : "QtCore.QTimer"
+    _main_widget : "QtWidgets.QMainWindow"
+    _tab : "QtWidgets.QTabWidget"
+    _view_impresoras : "QtWidgets.QTableWidget"
+    _view_modelos : "QtWidgets.QTableWidget"
+    _fields_printers : List[str] = ['Alias', 'impresora', 'Comando corte', 'Comando apertura']
+    _fields_alias : List[str] = ['Alias', 'modelo', 'copias']
 
     def __init__(self):
         super().__init__()
         self._status_server_ok = False
         self._timer = QtCore.QTimer()
         LOGGER.warning("Init main_window")
+        uic.loadUi(os.path.join('client_gui','main_window.ui'), self)
         self.setWindowTitle('QuimeraPS Control Panel')
-        self._status_label = QtWidgets.QLabel("STATUS", self)
-        self.show()
-        # TODO: Lanza actualizador de estado.
+        self._status_label = self.findChild(QtWidgets.QLabel, 'status_label')
+        self._version_label = self.findChild(QtWidgets.QLabel, 'version_label')
+        self._view_modelos = self.findChild(QtWidgets.QTableWidget, 'view_modelos')
+        self._view_impresoras = self.findChild(QtWidgets.QTableWidget, 'view_impresoras')
+        self._tab = self.findChild(QtWidgets.QTabWidget, 'tab_widget')
+        self._tab.currentChanged.connect(self.populateData)
         self.initStatusChecker()
+        self.populateData(0)
+        self.show()
 
-        # TODO: Inicializa pestaña printer_alias
-        # TODO: inicializa pestaña model_alias
-        # TODO: inicializa conexión a BD.
-        # TODO: Datos conexión jasper_server.
-        # TODO: Historial.
+        
+
     
-    def __del__(self):
-        """Destroy process."""
+    def populateData(self, idx : int) -> None:
+        
+            if idx == 0:
+                self.populatePrintersTable()
+            elif idx == 1:
+                self.populateModelsTable()
 
-        self._timer.stop()
+    def populatePrintersTable(self):
+        """Populate printers table."""
+        if self._status_server_ok:
+            LOGGER.debug("Populating printers")
+            response = self.askToServer('data', {'type' : 'data' , 'arguments' : {'mode' : 'raw', 'raw' : 'SELECT * FROM printers WHERE 1 = 1', 'with_response' : 1}})
+            data = response['response']['data'] if 'result' in response['response'].keys() and response['response']['result'] == 0 else []
+            self.populateTable('printers', data)
+
+
+    def populateModelsTable(self):
+        if self._status_server_ok:
+            LOGGER.debug("Populating models")
+            response = self.askToServer('data', {'type' : 'data' , 'arguments' : {'mode' : 'raw', 'raw' : 'SELECT * FROM models WHERE 1 = 1', 'with_response' : 1}})
+            data = response['response']['data'] if 'result' in response['response'].keys() and response['response']['result'] == 0 else []
+            self.populateTable('models', data)
+    
+    def clearTable(self, table : "QtWidgets.QTableWidget"):
+
+        while table.rowCount():
+            table.removeRow(0)
+        
+        table.clear()
+        table.setColumnCount(0)
+
+    def populateTable(self, name : str, data = []):
+        fields = []
+        fields += self._fields_printers if name == 'printers' else self._fields_alias
+        table = self._view_impresoras if name == 'printers' else self._view_modelos
+
+        fields += ['Opciones']
+        # cabecera
+
+        self.clearTable(table)
+
+
+        table.setColumnCount(len(fields))
+        table.setHorizontalHeaderLabels(fields)
+        for col in range(len(fields)):
+            table.horizontalHeader().setSectionResizeMode(col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+
+        idx_pk = 0
+
+        row_num = -1
+        for dato in data:
+            row_num = table.rowCount()
+            # print("insertando linea", row_num , "-->", dato)
+            table.insertRow(row_num)
+            for col_num, field_name in enumerate(fields):
+                # print("* col_num", col_num)
+                if col_num < len(fields) -1: 
+                    value = str(dato[col_num])
+                    # print("Campo", field_name, "->", value)
+                    text_item = QtWidgets.QTableWidgetItem(value)
+                    text_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter + QtCore.Qt.AlignmentFlag.AlignRight)
+                    table.setItem(row_num, col_num, text_item)
+                else:
+                    # print("Boton borrar", row_num)
+                    button = QtWidgets.QPushButton()
+                    button.setObjectName("delete_%s_%s" % (name, dato[idx_pk]))
+                    button.setText("Borrar")
+                    button.clicked.connect(self.proccessData)
+                    table.setCellWidget(row_num, col_num, button)
+            
+            # botón borrar
+            
+            
+
+
+
+
+
+        #registro limpio
+        #print("Última", row_num)
+        row_num += 1
+        table.insertRow(row_num )
+        for col_num, field_name in enumerate(fields):
+            if col_num < len(fields) -1: 
+                value = ''
+                text_item = QtWidgets.QTableWidgetItem(value)
+                text_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter + QtCore.Qt.AlignmentFlag.AlignRight)
+                table.setItem(row_num, col_num, text_item)
+            else:
+                # print("Botón crear!", row_num)
+                button = QtWidgets.QPushButton()
+                button.setObjectName("insert_%s_%s" % (name, ''))
+                button.setText("Crear")
+                button.clicked.connect(self.proccessData)
+                table.setCellWidget(row_num, col_num, button)
+
+
+    def proccessData(self):
+        sender = self.sender()
+        mode, table, pk = sender.objectName().split("_")
+
+        # print("EOOO", mode, table, pk)
+        self.sendQuery(mode, table, pk)
+        self.populateData(0 if table == 'printers' else 1)
+
+    def sendQuery(self, mode, table_name, pk = ''):
+
+        # Buscamos la linea y cogemos valores
+        
+        table = self._view_impresoras if table_name == 'printers' else self._view_modelos
+        data = []
+        # print("Recopilando datos view (%s)" %  pk)
+        if mode == 'delete':
+            for row_num in range(table.rowCount()):
+
+                if pk == table.item(row_num, 0).text():
+                    # print("PK encontrada", pk)
+                    for col_num in range(table.columnCount() -1):
+                        # print("Recolectando " , col_num)
+                        data.append(table.item(row_num, col_num).text())
+        else:
+            row_num = table.rowCount() -1
+            for col_num in range(table.columnCount() -1):
+                # print("Recolectando " , col_num)
+                data.append(table.item(row_num, col_num).text())
+
+
+        if not data[0] and mode == 'insert':
+            LOGGER.warning("Alias vacio")
+            return
+
+        qry = ''
+
+        if mode == 'delete':
+            qry = "DELETE FROM %s WHERE alias ='%s'" % (table_name, pk)
+        elif mode == 'insert':
+            qry = "INSERT INTO %s VALUES (%s)" % (table_name, ", ".join(['\'%s\'' % dat for dat in data]))
+
+        if qry:
+            trama =  {'type' : 'data' , 'arguments' : {'mode' : 'raw', 'raw' : qry, 'with_response' : 1}}
+            # print("TRAMA!!", trama)
+            try:
+                response = self.askToServer('data', trama)
+            except Exception as error:
+                LOGGER.warning("Error: %s, consulta : %s" % (error , trama)) 
+        
+
+            # print("RESPONSE", response)
+
+
+
 
 
     def initStatusChecker(self):
@@ -44,22 +204,36 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def askToServerAlive(self) -> None:
         """Ask to server if exists."""
-
         try:
-            result = self.askToServer("alive")['response']
-            print("***", result)
-            self._status_server_ok = True if result['result'] == 0 and result['data'] == 'hello' else False
-        except Exception:
-            self._status_server_ok = False
 
+            result = self.askToServer("alive")['response']
+            self._status_server_ok = result['data'] if result['result'] == 0  else ''
+        except Exception:
+            self._status_server_ok = ''
         self.updateStatusLabel()
 
     def updateStatusLabel(self) -> None:
         """Update status label."""
         
-        new_value = "Encendido" if self._status_server_ok else "Apagado"
-        print("**", new_value)
+        new_value = "Apagado"
+        version = ""
+
+
+        if self._status_server_ok:
+            new_value = "Encendido"
+            version = 'V %s ' % self._status_server_ok
+        
+        else:
+            self.clearTable(self._view_impresoras)
+            self.clearTable(self._view_modelos)
+
+        if new_value != self._status_label.text(): # Si cambia el texto refresco
+            self.populateData(self._tab.currentIndex())
+
         self._status_label.setText(new_value)
+        self._version_label.setText(version)
+
+
 
 
 
