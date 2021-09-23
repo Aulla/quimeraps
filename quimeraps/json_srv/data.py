@@ -2,6 +2,7 @@ import sqlite3
 import logging
 import os
 from typing import Any
+from quimeraps import DATA_DIR
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +23,11 @@ class SQLiteClass:
 
     def connectToDB(self):
         build_tables = False
-        file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'quimera_ps.bd')) 
+
+        if not os.path.exists(DATA_DIR):
+            os.makedirs(DATA_DIR, exist_ok=True)
+
+        file_path = os.path.abspath(os.path.join(DATA_DIR, 'quimera_ps.bd')) 
 
         if not os.path.exists(file_path):
             build_tables = True

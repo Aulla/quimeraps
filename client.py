@@ -1,5 +1,5 @@
 from PyQt6 import QtWidgets
-from client_gui import main_window
+from quimeraps.client_gui import main_window
 import sys, logging
 
 from typing import List

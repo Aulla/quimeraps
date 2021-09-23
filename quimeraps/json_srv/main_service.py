@@ -7,8 +7,8 @@ from werkzeug.serving import run_simple
 from pyreportjasper.config import Config
 from pyreportjasper.report import Report
 import ghostscript
-from . import data as data_module
-from . import __VERSION__
+from quimeraps.json_srv import data as data_module
+from quimeraps import __VERSION__, DATA_DIR
 
 from jsonrpc import JSONRPCResponseManager, dispatcher
 import os
@@ -190,7 +190,7 @@ def launchPrinter(printer_alias: str, model_alias: str, cut: bool, open_cd: bool
     model_name = model_data[0]
     num_copies = copies if copies else int(model_data[1]) if model_data[1] else 1
 
-    reports_dir = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__),'..', 'reports')))
+    reports_dir = os.path.join(os.path.abspath(DATA_DIR), 'reports')
     if not os.path.exists(reports_dir):
         LOGGER.warning("Making reports folder (%s)" %reports_dir)
         os.mkdir(reports_dir)

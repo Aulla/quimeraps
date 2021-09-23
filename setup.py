@@ -1,15 +1,13 @@
 """Main setup script."""
 
 import setuptools  # type: ignore
-import pathlib
-import subprocess
-from . import json_srv
+from quimeraps import __VERSION__
 
 
 with open("requirements.txt") as f:
     required = f.read().splitlines()
 
-version_ = json_srv.__VERSION__
+version_ = __VERSION__
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
@@ -25,7 +23,7 @@ setuptools.setup(
     url="",
     packages=setuptools.find_packages(),
     package_data={
-        "quimera-ps.client_gui": ["*"],
+        "quimeraps.client_gui": ["*.ui"],
     },
     install_requires=required,
     keywords="eneboo pineboo printer json",

@@ -2,7 +2,7 @@
 
 import sys
 import logging
-from json_srv import main_service
+from quimeraps.json_srv import main_service
 
 LOGGER = logging.getLogger(__name__)
 

@@ -25,7 +25,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._status_server_ok = False
         self._timer = QtCore.QTimer()
         LOGGER.warning("Init main_window")
-        uic.loadUi(os.path.join('client_gui','main_window.ui'), self)
+        uic.loadUi(os.path.join(os.path.dirname(__file__),'main_window.ui'), self)
         self.setWindowTitle('QuimeraPS Control Panel')
         self._status_label = self.findChild(QtWidgets.QLabel, 'status_label')
         self._version_label = self.findChild(QtWidgets.QLabel, 'version_label')
