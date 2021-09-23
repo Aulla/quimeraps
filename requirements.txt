@@ -1,0 +1,5 @@
+pyreportjasper=2.1.2
+werkzeug=2.0.1
+json-rpc=1.13.3
+PyQt6=6.1.2
+ghostscript=0.7

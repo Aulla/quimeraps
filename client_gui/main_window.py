@@ -104,13 +104,22 @@ class MainWindow(QtWidgets.QMainWindow):
                     table.setItem(row_num, col_num, text_item)
                 else:
                     # print("Boton borrar", row_num)
-                    button = QtWidgets.QPushButton()
-                    button.setObjectName("delete_%s_%s" % (name, dato[idx_pk]))
-                    button.setText("Borrar")
-                    button.clicked.connect(self.proccessData)
-                    table.setCellWidget(row_num, col_num, button)
-            
-            # botón borrar
+                    lay = QtWidgets.QHBoxLayout()
+                    button_delete = QtWidgets.QPushButton()
+                    button_delete.setObjectName("delete_%s_%s" % (name, dato[idx_pk]))
+                    button_delete.setText("Borrar")
+                    button_delete.clicked.connect(self.proccessData)
+                    lay.addWidget(button_delete)
+                    if name == 'printers':
+                        button_test = QtWidgets.QPushButton()
+                        button_test.setObjectName("test_%s" % (dato[idx_pk]))
+                        button_test.setText("Test")
+                        button_test.clicked.connect(self.proccessTest)
+                        lay.addWidget(button_test)
+                    
+                    options_widget = QtWidgets.QWidget()
+                    options_widget.setLayout(lay)
+                    table.setCellWidget(row_num, col_num, options_widget)
             
             
 
@@ -136,6 +145,55 @@ class MainWindow(QtWidgets.QMainWindow):
                 button.clicked.connect(self.proccessData)
                 table.setCellWidget(row_num, col_num, button)
 
+    def proccessTest(self):
+
+        sender = self.sender()
+        mode, pk = sender.objectName().split("_")
+        self.sendTest(pk)
+    
+    def sendTest(self, pk):
+        table = self._view_impresoras
+        printer_name = ''
+        for row_num in range(table.rowCount()):
+            if pk == table.item(row_num, 0).text():
+                printer_name = table.item(row_num, 0).text()
+                break
+
+        json_data = [
+                {
+                    "name": "ETHAN",
+                    "street": "Street 1",
+                    "city": "Fairfax",
+                    "phone": "+1 (415) 111-1111"
+                },
+                {
+                    "name": "CALEB",
+                    "street": "Street 2",
+                    "city": "San Francisco",
+                    "phone": "+1 (415) 222-2222"
+                },
+                {
+                    "name": "WILLIAM",
+                    "street": "Street 2",
+                    "city": "Paradise City",
+                    "phone": "+1 (415) 333-3333"
+                }]
+        
+        trama =  {'type' : 'new_job' , 'arguments' : {"printer": printer_name, "model": "test", "data": json_data}}
+        # print("TRAMA!!", trama)
+        try:
+            response = self.askToServer('new_job', trama)
+        except Exception as error:
+            LOGGER.warning("Error: %s, consulta : %s" % (error , trama))
+            response = error
+        
+        if isinstance(response, dict):
+            if 'response' in response.keys():
+                response_text = response['response']['data']
+        else:
+            response_text = str(response)
+
+        QtWidgets.QMessageBox.information(self, "QuimeraPS", response_text if response_text else "Test ok!")
 
     def proccessData(self):
         sender = self.sender()
@@ -180,14 +238,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if qry:
             trama =  {'type' : 'data' , 'arguments' : {'mode' : 'raw', 'raw' : qry, 'with_response' : 1}}
-            # print("TRAMA!!", trama)
+            #print("TRAMA!!", trama, qry)
             try:
-                response = self.askToServer('data', trama)
+                self.askToServer('data', trama)
             except Exception as error:
                 LOGGER.warning("Error: %s, consulta : %s" % (error , trama)) 
         
 
-            # print("RESPONSE", response)
+            #print("RESPONSE", response)
 
 
 

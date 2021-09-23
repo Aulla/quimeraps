@@ -22,7 +22,7 @@ class SQLiteClass:
 
     def connectToDB(self):
         build_tables = False
-        file_path = os.path.join(__file__.replace("data.py", ""), "..", 'quimera_ps.bd') 
+        file_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", 'quimera_ps.bd')) 
 
         if not os.path.exists(file_path):
             build_tables = True
@@ -37,11 +37,15 @@ class SQLiteClass:
         LOGGER.warning("Making tables.")
         cursor = self._connection.cursor()
         cursor.execute("CREATE TABLE printers (alias TEXT PRIMARY KEY, name TEXT, cut TEXT, cash_drawer TEXT)")
-        cursor.execute("CREATE TABLE models (alias TEXT PRIMARY KEY, name TEXT, copies INTEGER)")
+        cursor.execute("CREATE TABLE models (alias TEXT PRIMARY KEY, name TEXT, copies TEXT)")
         cursor.execute("CREATE TABLE history (id INTEGER PRIMARY KEY, client_id TEXT, timestamp DATETIME, data_request JSON, data_response JSON)")
+        cursor.close()
     
     def executeQuery(self, query: str):
-        return self._connection.cursor().execute(query)
+        cursor = self._connection.cursor()
+        result = cursor.execute(query)
+        self._connection.commit()
+        return result
 
 
 
