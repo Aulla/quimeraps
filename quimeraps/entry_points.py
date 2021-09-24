@@ -48,14 +48,13 @@ def install_daemon():
     if not mode:
         raise Exception("Mode ['install','remove'] is not specified.")
 
-    service_name = "QuimeraPS"
+
 
     if sys.platform.startswith('win'): # Windowzz
         if mode == 'install':
-            real_path = os.path.dirname(os.path.realpath(__file__))
-            os.system('sc.exe create %s binPath= "%s/quimeraps_server.exe"' % (service_name,real_path))
+            daemon_functions.install_windows_service()
         elif mode == 'delete':
-            os.system('sc.exe delete %s' % (service_name))
+            daemon_functions.remove_windows_service()
         else:
             raise Exception("Unknown mode %s" % mode)
     else:

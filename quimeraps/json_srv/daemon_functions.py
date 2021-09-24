@@ -82,3 +82,12 @@ def remove_linux_daemon():
         os.system("service quimeraps stop")
         os.remove(SERVICE_FILE_NAME)
         #os.system('update-rc.d -f %s remove' % SERVICE_NAME)
+
+
+def install_windows_service():
+
+    real_path = os.path.dirname(os.path.realpath(__file__))
+    os.system('sc.exe create %s binPath= "%s/quimeraps_server.exe"' % (SERVICE_NAME,real_path))
+
+def remove_windows_service():
+     os.system('sc.exe delete %s' % (SERVICE_NAME))
