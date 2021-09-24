@@ -101,6 +101,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     # print("Campo", field_name, "->", value)
                     text_item = QtWidgets.QTableWidgetItem(value)
                     text_item.setTextAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter + QtCore.Qt.AlignmentFlag.AlignRight)
+                    text_item.setFlags(QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEnabled)
                     table.setItem(row_num, col_num, text_item)
                 else:
                     # print("Boton borrar", row_num)
@@ -118,6 +119,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         lay.addWidget(button_test)
                     
                     options_widget = QtWidgets.QWidget()
+                    lay.setContentsMargins(0,0,0,0)
                     options_widget.setLayout(lay)
                     table.setCellWidget(row_num, col_num, options_widget)
             
@@ -180,7 +182,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 }]
         
         trama =  {'type' : 'new_job' , 'arguments' : {"printer": printer_name, "model": "test", "data": json_data}}
-        print("TRAMA!!", trama)
+        LOGGER.warning("Sending %s" % (trama))
         try:
             response = self.askToServer('new_job', trama)
         except Exception as error:
@@ -310,3 +312,4 @@ class MainWindow(QtWidgets.QMainWindow):
         }
 
         return requests.post(url, json=payload).json()['result']
+        
