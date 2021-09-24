@@ -3,7 +3,7 @@
 import os, sys
 
 DATA_DIR = os.path.join(os.environ["ProgramFiles"] if sys.platform.startswith('win') else 'opt', 'quimeraPS') 
-__VERSION__ = "0.7"
+__VERSION__ = "0.8.2"
 
 
 

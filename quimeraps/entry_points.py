@@ -1,5 +1,7 @@
 import logging
+from quimeraps.json_srv import daemon_functions
 import sys
+import os
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,27 +16,32 @@ def startup_client():
 
 
 def startup_server():
-    from quimeraps.json_srv import daemon
 
     if sys.platform.startswith('win'): 
-        daemon.start_windows_service()
+        daemon_functions.start_windows_service()
     else:
         mode = sys.argv[1] if len(sys.argv) > 1 else None
         if not mode:
             LOGGER.warning("Mode is not specified.")
         
+        if os.geteuid() != 0:
+            LOGGER.warning("This user is not super!.")
+            return
+        
         if mode == 'start':
-            daemon.start_linux_proccess()
+            daemon_functions.start_linux_proccess()
         elif mode == 'stop':
-            daemon.stop_linux_proccess()
+            daemon_functions.stop_linux_proccess()
         elif mode == 'restart':
-            daemon.restart_linux_proccess()
+            daemon_functions.restart_linux_proccess()
             
 
 def install_service():
     """Install daemon."""
 
-    import os
+    if os.geteuid() != 0:
+        LOGGER.warning("This user is not super!.")
+        return
 
     mode = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -50,11 +57,12 @@ def install_service():
         elif mode == 'delete':
             os.system('sc.exe delete %s' % (service_name))
     else:
-        LOGGER.warning("Option not implemented yet")
-
-
-    
-    LOGGER.warning("The service %s was %sed sucefully." % (service_name, mode))
+        
+        
+        if mode == 'install':
+            daemon_functions.install_linux_daemon()
+        elif mode == 'remove':
+            daemon_functions.remove_linux_daemon()
 
 
 
