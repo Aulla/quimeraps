@@ -36,7 +36,7 @@ def startup_server():
             daemon_functions.restart_linux_proccess()
             
 
-def install_service():
+def install_daemon():
     """Install daemon."""
 
     if os.geteuid() != 0:
@@ -56,6 +56,8 @@ def install_service():
             os.system('sc.exe create %s binPath= "%s/quimeraps_server.exe"' % (service_name,real_path))
         elif mode == 'delete':
             os.system('sc.exe delete %s' % (service_name))
+        else:
+            raise Exception("Unknown mode %s" % mode)
     else:
         
         
@@ -63,6 +65,8 @@ def install_service():
             daemon_functions.install_linux_daemon()
         elif mode == 'remove':
             daemon_functions.remove_linux_daemon()
+        else:
+            raise Exception("Unknown mode %s" % mode)
 
 
 

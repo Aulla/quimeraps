@@ -4,6 +4,7 @@ LOGGER = logging.getLogger(__name__)
 PID_FILE = '/var/run/quimeraps.pid'
 PID_LOCK_FILE = "%s.lock" % PID_FILE
 SERVICE_FILE_NAME = '/etc/systemd/system/quimeraps.service'
+SERVICE_NAME='quimeraps'
 
 def start_windows_service():
     from quimeraps.json_srv import main_service  
@@ -73,9 +74,11 @@ def install_linux_daemon():
 
     LOGGER.warning("File %s created" % SERVICE_FILE_NAME)
     os.system('systemctl daemon-reload')
+    #os.system('update-rc.d %s defaults' % SERVICE_NAME)
     #os.system("service quimeraps start")
 
 def remove_linux_daemon():
     if os.path.exists(SERVICE_FILE_NAME):
         os.system("service quimeraps stop")
         os.remove(SERVICE_FILE_NAME)
+        #os.system('update-rc.d -f %s remove' % SERVICE_NAME)
