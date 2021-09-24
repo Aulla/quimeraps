@@ -1,49 +1,14 @@
 import logging, sys, os, time
 
 LOGGER = logging.getLogger(__name__)
-PID_FILE = '/var/run/quimeraps.pid'
-PID_LOCK_FILE = "%s.lock" % PID_FILE
 SERVICE_FILE_NAME = '/etc/systemd/system/quimeraps.service'
 SERVICE_NAME='quimeraps'
 
-def start_windows_service():
+def start():
     from quimeraps.json_srv import main_service  
     instance = main_service.JsonClass()
     instance.run()
 
-def restart_linux_proccess():
-    stop_linux_proccess()
-    time.sleep(2)
-    start_linux_proccess()
-
-def start_linux_proccess():
-
-    import daemon
-    import lockfile
-    from quimeraps.json_srv import main_service
-
-    
-    if os.path.exists(PID_LOCK_FILE):
-        LOGGER.warning("Daemon is already active.")
-        return
-    with daemon.DaemonContext(stdout=sys.stdout, stderr=sys.stderr, pidfile=lockfile.FileLock(PID_FILE)):
-        pid = os.getpid()
-        file_ = open(PID_LOCK_FILE, 'w', encoding='UTF-8')
-        file_.write(str(pid))
-        file_.close()
-        instance = main_service.JsonClass()
-        instance.run()
-
-def stop_linux_proccess():
-
-    if os.path.exists(PID_LOCK_FILE):
-        pid_ = open(PID_LOCK_FILE, 'r').readline()
-        if pid_:
-            os.system('kill %s' % pid_)
-    
-        time.sleep(2)
-        if os.path.exists(PID_LOCK_FILE):
-            os.remove(PID_LOCK_FILE)
 
 def install_linux_daemon():
     from quimeraps import __VERSION__
@@ -63,7 +28,7 @@ def install_linux_daemon():
     data.append('Restart=always')
     data.append('RestartSec=1')
     data.append('User=root')
-    data.append('ExecStart=quimeraps_server start')
+    data.append('ExecStart=quimeraps_server')
     #data.append('')
     #data.append('[Install]')
     #data.append('WantedBy=multi-user.target')
@@ -76,6 +41,7 @@ def install_linux_daemon():
     os.system('systemctl daemon-reload')
     #os.system('update-rc.d %s defaults' % SERVICE_NAME)
     #os.system("service quimeraps start")
+    # TODO: inicializar servicio al arrancar
 
 def remove_linux_daemon():
     if os.path.exists(SERVICE_FILE_NAME):
@@ -85,7 +51,7 @@ def remove_linux_daemon():
 
 
 def install_windows_service():
-
+    # TODO: recoger ruta correcta
     real_path = os.path.dirname(os.path.realpath(__file__))
     os.system('sc.exe create %s binPath= "%s/quimeraps_server.exe"' % (SERVICE_NAME,real_path))
 

@@ -17,23 +17,13 @@ def startup_client():
 
 def startup_server():
 
-    if sys.platform.startswith('win'): 
-        daemon_functions.start_windows_service()
-    else:
-        mode = sys.argv[1] if len(sys.argv) > 1 else None
-        if not mode:
-            LOGGER.warning("Mode is not specified.")
-        
+    if not sys.platform.startswith('win'): 
         if os.geteuid() != 0:
             LOGGER.warning("This user is not super!.")
             return
         
-        if mode == 'start':
-            daemon_functions.start_linux_proccess()
-        elif mode == 'stop':
-            daemon_functions.stop_linux_proccess()
-        elif mode == 'restart':
-            daemon_functions.restart_linux_proccess()
+    daemon_functions.start()
+
             
 
 def install_daemon():
