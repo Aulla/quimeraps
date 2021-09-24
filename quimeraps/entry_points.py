@@ -35,28 +35,17 @@ def install_daemon():
 
     mode = sys.argv[1] if len(sys.argv) > 1 else None
 
-    if not mode:
+    if not mode or mode not in ['install', 'remove']:
         raise Exception("Mode ['install','remove'] is not specified.")
 
+    func_name = "%s_%s_daemon" % (mode, 'windows' if sys.platform.startswith('win') else 'linux')
 
+    func = getattr(daemon_functions, func_name, None)
 
-    if sys.platform.startswith('win'): # Windowzz
-        if mode == 'install':
-            daemon_functions.install_windows_service()
-        elif mode == 'delete':
-            daemon_functions.remove_windows_service()
-        else:
-            raise Exception("Unknown mode %s" % mode)
+    if func_name is None:
+        raise Exception('Unknown function %s' % func_name)
     else:
-        
-        
-        if mode == 'install':
-            daemon_functions.install_linux_daemon()
-        elif mode == 'remove':
-            daemon_functions.remove_linux_daemon()
-        else:
-            raise Exception("Unknown mode %s" % mode)
-
+        func()
 
 
 
