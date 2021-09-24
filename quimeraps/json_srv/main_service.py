@@ -19,7 +19,7 @@ import sys
         
 from typing import Dict, List, Optional, Any
 
-CONN = data_module.SQLiteClass()
+CONN = None
 
 LOGGER = logging.getLogger(__name__)
 
@@ -27,12 +27,9 @@ LOGGER = logging.getLogger(__name__)
 class JsonClass:
     """JsonClass class"""
 
-    _enabled : bool = False
-
-    def __init__(self):
-        """Initialize."""
-
-        self._enabled = False
+    def run(self):
+        global CONN
+        CONN = data_module.SQLiteClass()
         LOGGER.warning("Quimera-ps service v.%s" % (__VERSION__))
         run_simple('0.0.0.0', 4000, self.service)
     
@@ -50,6 +47,9 @@ class JsonClass:
             data_response = Response({'error': error}, mimetype='application/json')
         # TODO: meterlo en historial data_request y data response.
         return data_response
+    
+    def __del__(self):
+        LOGGER.warning('Bye!')
 
 
 @dispatcher.add_method

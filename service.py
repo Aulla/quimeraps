@@ -3,4 +3,4 @@
 from quimeraps import entry_points
 
 if __name__ == "__main__":
-    entry_points.startup_service()
+    entry_points.startup_server()

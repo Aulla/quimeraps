@@ -30,8 +30,9 @@ setuptools.setup(
     python_requires=">=3.6.9",
     entry_points={
         "console_scripts": [
-            "quimera_service=quimeraps.entry_points:startup_service",
-            "quimera_client=quimeraps.entry_points:startup_client",
+            "quimeraps_server=quimeraps.entry_points:startup_server",
+            "quimeraps_client=quimeraps.entry_points:startup_client",
+            "quimeraps_client=quimeraps.entry_points:install_service"
         ]
     },
     classifiers=[

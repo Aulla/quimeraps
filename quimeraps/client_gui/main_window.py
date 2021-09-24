@@ -180,7 +180,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 }]
         
         trama =  {'type' : 'new_job' , 'arguments' : {"printer": printer_name, "model": "test", "data": json_data}}
-        # print("TRAMA!!", trama)
+        print("TRAMA!!", trama)
         try:
             response = self.askToServer('new_job', trama)
         except Exception as error:
