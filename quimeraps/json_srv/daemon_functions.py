@@ -54,7 +54,7 @@ def install_linux_daemon():
     data.append('# Quimera print service v%s' % __VERSION__)
     data.append('[Unit]')
     data.append('Description=Quimera print service')
-    data.append('After=network.target')
+    #data.append('After=network.target')
     data.append('StartLimitIntervalSec=0')
     data.append('')
     data.append('[Service]')
@@ -62,17 +62,18 @@ def install_linux_daemon():
     data.append('Restart=always')
     data.append('RestartSec=1')
     data.append('User=root')
-    data.append('quimeraps_server start')
-    data.append('')
-    data.append('[Install]')
-    data.append('WantedBy=multi-user.target')
+    data.append('ExecStart=quimeraps_server start')
+    #data.append('')
+    #data.append('[Install]')
+    #data.append('WantedBy=multi-user.target')
 
     file_ = open(SERVICE_FILE_NAME, 'w', encoding='UTF-8')
     file_.writelines(['%s\n' % line for line in data])
     file_.close()
 
     LOGGER.warning("File %s created" % SERVICE_FILE_NAME)
-    os.system("service quimeraps start")
+    os.system('systemctl daemon-reload')
+    #os.system("service quimeraps start")
 
 def remove_linux_daemon():
     if os.path.exists(SERVICE_FILE_NAME):
