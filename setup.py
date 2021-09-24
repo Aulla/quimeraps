@@ -32,7 +32,7 @@ setuptools.setup(
         "console_scripts": [
             "quimeraps_server=quimeraps.entry_points:startup_server",
             "quimeraps_client=quimeraps.entry_points:startup_client",
-            "quimeraps_service=quimeraps.entry_points:install_service"
+            "quimeraps_daemon=quimeraps.entry_points:install_daemon"
         ]
     },
     classifiers=[
