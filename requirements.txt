@@ -1,4 +1,4 @@
-pyreportjasper==2.1.2
+pyreportjasper==2.1.0
 werkzeug==2.0.1
 json-rpc==1.13.0
 PyQt6==6.1.1
