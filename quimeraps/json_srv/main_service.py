@@ -162,6 +162,7 @@ def resolvePrinter(printer_alias: str):
         result = printer_cursor.fetchone()
         printer_cursor.close()
         return result
+
     return None
 
 
@@ -219,62 +220,66 @@ def launchPrinter(
         input_file = "%s.jrxml" % os.path.join(reports_dir, "%s" % model_name)
 
         if not os.path.exists(input_file):
-            return "Model (%s) doesn't exists!" % input_file
-
-        output_file = tempfile.mktemp()
-        output_file_pdf = output_file + ".pdf"
-
-        # generamos temporal con datos json
-        temp_json_file = tempfile.mktemp(".json")
-        file_ = open(temp_json_file, "w", encoding="UTF-8")
-        file_.write(str({"query": {"registers": data}}))
-        file_.close()
-
-        if not os.path.exists(temp_json_file):
-            return "JSON file (%s) doesn't exists!" % temp_json_file
-
-        LOGGER.info(
-            "json :%s, jasper: %s, result: %s" % (temp_json_file, input_file, output_file_pdf)
-        )
-
-        try:
-            config = jasper_config.Config()
-            config.input = input_file
-            config.output = output_file
-            config.dataFile = temp_json_file
-
-            config.dbType = "json"
-            config.jsonQuery = "query.registers"
-            instance = report.Report(config, config.input)
-            instance.fill()
-            instance.export_pdf()
-
-            for num in range(num_copies):
-                LOGGER.debug(
-                    "Sendign Nº %s, printer: %s, model: %s" % (num + 1, printer_name, model_name)
-                )
-                result = sendToPrinter(printer_name, output_file_pdf)
-
-                # lanza corte
-                if not result and cut_command:
-                    temp_cut_file: str = tempfile.mktemp(".esc_command")
-                    file_cut = open(temp_cut_file, "b")
-                    file_cut.write(cut_command.encode())
-                    file_cut.close()
-                    result = sendToPrinter(printer_name, temp_cut_file)
-
-                if result:
-                    break
-            # lanza cajon
-            if not result and open_command:
-                temp_open_file: str = tempfile.mktemp(".esc_command")
-                file_cut = open(temp_open_file, "b")
-                file_cut.write(open_command.encode())
-                file_cut.close()
-                result = sendToPrinter(printer_name, temp_open_file)
-        except Exception as error:
-            result = "Error: %s" % error
+            result = "Model (%s) doesn't exists!" % input_file
             LOGGER.warning(result)
+        else:
+            output_file = tempfile.mktemp()
+            output_file_pdf = output_file + ".pdf"
+
+            # generamos temporal con datos json
+            temp_json_file = tempfile.mktemp(".json")
+            file_ = open(temp_json_file, "w", encoding="UTF-8")
+            file_.write(str({"query": {"registers": data}}))
+            file_.close()
+
+            if not os.path.exists(temp_json_file):
+                result = "JSON file (%s) doesn't exists!" % temp_json_file
+                LOGGER.warning(result)
+            else:
+                LOGGER.info(
+                    "json :%s, jasper: %s, result: %s"
+                    % (temp_json_file, input_file, output_file_pdf)
+                )
+
+                try:
+                    config = jasper_config.Config()
+                    config.input = input_file
+                    config.output = output_file
+                    config.dataFile = temp_json_file
+
+                    config.dbType = "json"
+                    config.jsonQuery = "query.registers"
+                    instance = report.Report(config, config.input)
+                    instance.fill()
+                    instance.export_pdf()
+
+                    for num in range(num_copies):
+                        LOGGER.debug(
+                            "Sendign Nº %s, printer: %s, model: %s"
+                            % (num + 1, printer_name, model_name)
+                        )
+                        result = sendToPrinter(printer_name, output_file_pdf)
+
+                        # lanza corte
+                        if not result and cut_command:
+                            temp_cut_file: str = tempfile.mktemp(".esc_command")
+                            file_cut = open(temp_cut_file, "b")
+                            file_cut.write(cut_command.encode())
+                            file_cut.close()
+                            result = sendToPrinter(printer_name, temp_cut_file)
+
+                        if result:
+                            break
+                    # lanza cajon
+                    if not result and open_command:
+                        temp_open_file: str = tempfile.mktemp(".esc_command")
+                        file_cut = open(temp_open_file, "b")
+                        file_cut.write(open_command.encode())
+                        file_cut.close()
+                        result = sendToPrinter(printer_name, temp_open_file)
+                except Exception as error:
+                    result = "Error: %s" % error
+                    LOGGER.warning(result)
 
     return result
 
