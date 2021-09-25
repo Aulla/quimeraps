@@ -1,0 +1,7 @@
+servicio de impresión Quimera es un servidor jon-rpc que procesa informes jasperreports y los rellena con la información recibida a traves de las llamadas al servico.
+
+Se compone de 3 partes:
+-servidor. Servidor json-rpc que procesa las llamadas
+-cliente. Interface PyQt6 encargada de ver el estado del servidor y de gestionar impresoras y modelos.
+-daemon. Permite instalar y/o eliminar el servicio quimeraps en el Sistema operativo anfitrion.
+ 
