@@ -254,8 +254,8 @@ def launchPrinter(
                     instance.export_pdf()
 
                     for num in range(num_copies):
-                        LOGGER.debug(
-                            "Sendign Nº %s, printer: %s, model: %s"
+                        LOGGER.info(
+                            "Sendign copy %s, printer: %s, model: %s"
                             % (num + 1, printer_name, model_name)
                         )
                         result = sendToPrinter(printer_name, output_file_pdf)
