@@ -1,0 +1,10 @@
+TODO
+====
+
+* Crear optsparse:
+    - puerto por defecto
+    - verbose
+
+* Mejorar impresion Windows
+* Mejorar envio caracteres escape.
+* Capturar crtl+C en cliente para cerrar.
