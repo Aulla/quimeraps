@@ -1,6 +1,6 @@
 TODO
 ====
-
+* Crear README
 * Crear optsparse:
     - puerto por defecto
     - verbose
