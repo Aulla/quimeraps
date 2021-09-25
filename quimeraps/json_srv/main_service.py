@@ -1,111 +1,108 @@
-"""main package."""
+"""main_service module."""
 
+from werkzeug import serving, wrappers
 
-from werkzeug.wrappers import Response, Request
-from werkzeug.serving import run_simple
-
-from pyreportjasper.config import Config
-from pyreportjasper.report import Report
-import ghostscript
+from pyreportjasper import report, config as jasper_config  # type: ignore [import]
+import ghostscript  # type: ignore [import]
 from quimeraps.json_srv import data as data_module
+from quimeraps.json_srv import logging
 from quimeraps import __VERSION__, DATA_DIR
 
-from jsonrpc import JSONRPCResponseManager, dispatcher
+from jsonrpc import JSONRPCResponseManager, dispatcher  # type: ignore [import]
 import os
-import logging
 import tempfile
 import locale
 import sys
-        
-from typing import Dict, List, Optional, Any
 
-CONN = None
+from typing import Dict, List, Optional, Union, Any
+
+CONN: "data_module.SQLiteClass"
 
 LOGGER = logging.getLogger(__name__)
 
 
 class JsonClass:
-    """JsonClass class"""
+    """JsonClass class."""
 
     def run(self):
+        """Start sjon service."""
         global CONN
+        LOGGER.info("QuimeraPS service v.%s starts." % (__VERSION__))
         CONN = data_module.SQLiteClass()
-        LOGGER.warning("Quimera-ps service v.%s" % (__VERSION__))
-        run_simple('0.0.0.0', 4000, self.service)
-    
+        serving.run_simple("0.0.0.0", 4000, self.service)
 
-    @Request.application
-    def service(self, request) -> None:
+    @wrappers.Request.application  # type: ignore  [arg-type]
+    def service(self, request) -> "wrappers.Response":
         """Json service."""
-
-        response = JSONRPCResponseManager.handle(
-        request.data, dispatcher)
+        response = JSONRPCResponseManager.handle(request.data, dispatcher)
         # data_request = request.data
         try:
-            data_response = Response(response.json, mimetype='application/json')
+            data_response = wrappers.Response(response.json, mimetype="application/json")
         except Exception as error:
-            data_response = Response({'error': error}, mimetype='application/json')
+            data_response = wrappers.Response({"error": error}, mimetype="application/json")
         # TODO: meterlo en historial data_request y data response.
         return data_response
-    
+
     def __del__(self):
-        LOGGER.warning('Bye!')
+        """Delete proccess."""
+        LOGGER.info("QuimeraPS service stops.")
 
 
 @dispatcher.add_method
-def requestDispatcher( **kwargs):
+def requestDispatcher(**kwargs):
     """Dispatch print requests."""
+    return {"response": processRequest(**kwargs)}
 
-    return {'response' : processRequest(**kwargs)}
 
-
-def  processRequest(**kwargs) -> Dict[str, Any]:
-    """Process print request"""
-
-    error = ''
-    data = ''
+def processRequest(**kwargs) -> Dict[str, Any]:
+    """Process print request."""
+    is_error: bool = False
+    data_or_str: Union[str, List[Any]] = ""
 
     if "type" in kwargs.keys():
-        type_ = kwargs['type']
-        #LOGGER.warning("NEW %s!" % (type_))
-        if type_ == 'new_job':
-            error = printerRequest(**kwargs['arguments'])
-        elif type_ == 'alive':
-            data = aliveRequest()
-        elif type_ == 'data':
-            data = dataRequest(**kwargs['arguments'])
+        type_ = kwargs["type"]
+        # LOGGER.warning("NEW %s!" % (type_))
+        if type_ == "new_job":
+            data_or_str = printerRequest(**kwargs["arguments"])
+            is_error = data_or_str != ""
+        elif type_ == "alive":
+            data_or_str = aliveRequest()
+        elif type_ == "data":
+            data_or_str = dataRequest(**kwargs["arguments"])
         else:
-            LOGGER.warning("UNKNOWN %s!" % (type_))
+            LOGGER.warning("Unknown request %s!" % (type_))
 
     else:
-        error = 'type field is not defined'
+        is_error = True
+        data_or_str = "type field is not defined"
 
-    
-    return {'result' : 1 if error else 0, 'data' : error if error else data}
+    return {"result": 1 if is_error else 0, "data": data_or_str}
+
 
 def aliveRequest() -> str:
     """Return a alive string."""
-
     return __VERSION__
 
 
 def dataRequest(**kwargs) -> List[Any]:
+    """Return data from database connection."""
+    global CONN
 
-    """Return data from SQLLITE."""
-    result = ''
+    result: str = ""
 
     # table_name = kwargs['table'] if 'table' in kwargs.keys() else ""
-    mode = kwargs['mode']
-    
-    
+    mode = kwargs["mode"]
+
     # fields = kwargs['fields'] if 'fields' in kwargs.keys() else ['*']
     # pk = kwargs['pk'] if 'pk' in kwargs.keys() else '1 = 1'
     # values = kwargs['values'] if 'values' in kwargs.keys() else []
-    raw_text = kwargs['raw'] if 'raw' in kwargs.keys() else ''
-    with_response = True if 'with_response' in kwargs.keys() and kwargs['with_response'] == 1 else False
-    result = 'ok'
+    raw_text = kwargs["raw"] if "raw" in kwargs.keys() else ""
+    with_response = (
+        True if "with_response" in kwargs.keys() and kwargs["with_response"] == 1 else False
+    )
+    result = "ok"
     try:
-        if mode == 'raw':
+        if mode == "raw":
             try:
                 query_cursor = CONN.executeQuery(raw_text)
                 # print("CALLING!", raw_text)
@@ -113,50 +110,68 @@ def dataRequest(**kwargs) -> List[Any]:
                     result = query_cursor.fetchall()
                 query_cursor.close()
             except Exception as error:
-                result = {"error_sql" : error}
+                result = str(error)
         else:
-            result = 'unknown mode (%s)' % mode
+            result = "unknown mode (%s)" % mode
     except Exception as error:
-        result = error
-    
-    return result
+        result = str(error)
 
-def printerRequest(**kwargs) -> int:
+    return [{"error": result}] if isinstance(result, str) else result
+
+
+def printerRequest(**kwargs) -> str:
     """Print requests."""
-    error = ''
+    result = ""
 
     kwargs_names = kwargs.keys()
-    for name in ['printer']:
+    for name in ["printer"]:
         if name not in kwargs_names:
-            error = "%s field not specified" % name
-    
-    if 'model' not in kwargs_names:
-        kwargs['model'] = ''
-    
-    if 'data' not in kwargs_names:
-        kwargs['data'] = []
-    
-            
-    if not error:
-        if 'cut' not in kwargs_names:
-            kwargs['cut'] = False
-        if 'open_cash_drawer' not in kwargs_names:
-            kwargs['open_cash_drawer'] = False
+            result = "%s field not specified" % name
 
-        error = launchPrinter(kwargs['printer'], kwargs['model'], kwargs['cut'],kwargs['open_cash_drawer'],  kwargs['data'])
-    
-    return error
+    if "model" not in kwargs_names:
+        kwargs["model"] = ""
+
+    if "data" not in kwargs_names:
+        kwargs["data"] = []
+
+    if not result:
+        if "cut" not in kwargs_names:
+            kwargs["cut"] = False
+        if "open_cash_drawer" not in kwargs_names:
+            kwargs["open_cash_drawer"] = False
+
+        result = launchPrinter(
+            kwargs["printer"],
+            kwargs["model"],
+            kwargs["cut"],
+            kwargs["open_cash_drawer"],
+            kwargs["data"],
+        )
+
+    return result
+
 
 def resolvePrinter(printer_alias: str):
-    printer_cursor = CONN.executeQuery("SELECT name,cut,cash_drawer FROM printers WHERE alias='%s'" % printer_alias)
+    """Resolve printer name using alias."""
+    global CONN
+
+    printer_cursor = CONN.executeQuery(
+        "SELECT name,cut,cash_drawer FROM printers WHERE alias='%s'" % printer_alias
+    )
     if printer_cursor.rowcount:
         result = printer_cursor.fetchone()
         printer_cursor.close()
         return result
     return None
 
+
 def resolveModel(model_alias: str):
-    model_cursor = CONN.executeQuery("SELECT name,copies FROM models WHERE alias='%s'" % model_alias)
+    """Resolve model file usign alias."""
+    global CONN
+
+    model_cursor = CONN.executeQuery(
+        "SELECT name,copies FROM models WHERE alias='%s'" % model_alias
+    )
     if model_cursor.rowcount:
         result = model_cursor.fetchone()
         model_cursor.close()
@@ -164,112 +179,121 @@ def resolveModel(model_alias: str):
         return result
 
     return None
-    
 
-def launchPrinter(printer_alias: str, model_alias: str, cut: bool, open_cd: bool, data:List[Any], copies: int = 0) -> str:
+
+def launchPrinter(
+    printer_alias: str, model_alias: str, cut: bool, open_cd: bool, data: List[Any], copies: int = 0
+) -> str:
     """Print a request."""
-
-    # LOGGER.warning("Impresora: %s, modelo: %s, cut: %s, drawer: %s, data: %s, copies: %s" % (printer_alias, model_alias, cut, open, data, copies))
-    result = ''
+    result = ""
     # resolver nombre impresora
-    printer_data = resolvePrinter(printer_alias) 
+    printer_data = resolvePrinter(printer_alias)
     if not printer_data:
-        return "Printer alias (%s) doesn't exists!" % printer_alias
+        result = "Printer alias (%s) doesn't exists!" % printer_alias
+        LOGGER.warning(result)
 
     # resolver nomber model
-    model_data = resolveModel(model_alias)
-    if not model_data:
-        return "Model alias (%s) doesn't exists!" % model_alias
+    if not result:
+        model_data = resolveModel(model_alias)
+        if not model_data:
+            result = "Model alias (%s) doesn't exists!" % model_alias
+            LOGGER.warning(result)
 
-    if not data:
-        return 'Data (%s) is empty' % data
-    # crear request
-    printer_name = printer_data[0]
-    cut_command : Optional[str] = printer_data[1] if cut and printer_data[1] else None
-    open_command : Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
-    model_name = model_data[0]
-    num_copies = copies if copies else int(model_data[1]) if model_data[1] else 1
+    if not result and not data:
+        result = "Data (%s) is empty" % data
+        LOGGER.warning(result)
 
-    reports_dir = os.path.join(os.path.abspath(DATA_DIR), 'reports')
-    if not os.path.exists(reports_dir):
-        LOGGER.warning("Making reports folder (%s)" %reports_dir)
-        os.mkdir(reports_dir)
+    if not result:  # Si no hay fallo previo
+        # crear request
+        printer_name = printer_data[0]
+        cut_command: Optional[str] = printer_data[1] if cut and printer_data[1] else None
+        open_command: Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
+        model_name = model_data[0]
+        num_copies = copies if copies else int(model_data[1]) if model_data[1] else 1
 
+        reports_dir = os.path.join(os.path.abspath(DATA_DIR), "reports")
+        if not os.path.exists(reports_dir):
+            LOGGER.warning("Making reports folder (%s)" % reports_dir)
+            os.mkdir(reports_dir)
 
-    input_file = "%s.jrxml" % os.path.join(reports_dir, '%s' % model_name)
+        input_file = "%s.jrxml" % os.path.join(reports_dir, "%s" % model_name)
 
-    if not os.path.exists(input_file):
-        return "Model (%s) doesn't exists!" % input_file
-    
-    output_file = tempfile.mktemp()
-    output_file_pdf = output_file +  '.pdf'
+        if not os.path.exists(input_file):
+            return "Model (%s) doesn't exists!" % input_file
 
-    # generamos temporal con datos json
-    temp_json_file = tempfile.mktemp(".json")
-    file_= open(temp_json_file, 'w', encoding="UTF-8")
-    file_.write(str({"query": {"registers": data }}))
-    file_.close()
+        output_file = tempfile.mktemp()
+        output_file_pdf = output_file + ".pdf"
 
-    if not os.path.exists(temp_json_file):
-        return "JSON file (%s) doesn't exists!" % temp_json_file
+        # generamos temporal con datos json
+        temp_json_file = tempfile.mktemp(".json")
+        file_ = open(temp_json_file, "w", encoding="UTF-8")
+        file_.write(str({"query": {"registers": data}}))
+        file_.close()
 
-    LOGGER.warning("Fichero JSON = %s" % temp_json_file)
-    LOGGER.warning("Fichero JASPER = %s" % input_file)
-    LOGGER.warning("Fichero resultado = %s " % output_file_pdf )
+        if not os.path.exists(temp_json_file):
+            return "JSON file (%s) doesn't exists!" % temp_json_file
 
-    config = Config()
-    config.input =  input_file
-    config.output = output_file
-    config.dataFile = temp_json_file 
+        LOGGER.info(
+            "json :%s, jasper: %s, result: %s" % (temp_json_file, input_file, output_file_pdf)
+        )
 
-    config.dbType = 'json'
-    config.jsonQuery = 'query.registers'
-    instance = Report(config, config.input)
-    instance.fill()
-    instance.export_pdf()
+        try:
+            config = jasper_config.Config()
+            config.input = input_file
+            config.output = output_file
+            config.dataFile = temp_json_file
 
+            config.dbType = "json"
+            config.jsonQuery = "query.registers"
+            instance = report.Report(config, config.input)
+            instance.fill()
+            instance.export_pdf()
 
+            for num in range(num_copies):
+                LOGGER.debug(
+                    "Sendign Nº %s, printer: %s, model: %s" % (num + 1, printer_name, model_name)
+                )
+                result = sendToPrinter(printer_name, output_file_pdf)
 
-    try:
-        for num in range(num_copies):
-            LOGGER.warning("Sendign Nº %s, printer: %s, model: %s" % (num + 1, printer_name, model_name))
-            result = sendToPrinter(printer_name, output_file_pdf)
+                # lanza corte
+                if not result and cut_command:
+                    temp_cut_file: str = tempfile.mktemp(".esc_command")
+                    file_cut = open(temp_cut_file, "b")
+                    file_cut.write(cut_command.encode())
+                    file_cut.close()
+                    result = sendToPrinter(printer_name, temp_cut_file)
 
-            # lanza corte
-            if not result and cut_command:
-                temp_cut_file: str = tempfile.mktemp('.esc_command')
-                file_cut = open(temp_cut_file, 'b')
-                file_cut.write(cut_command.encode())
+                if result:
+                    break
+            # lanza cajon
+            if not result and open_command:
+                temp_open_file: str = tempfile.mktemp(".esc_command")
+                file_cut = open(temp_open_file, "b")
+                file_cut.write(open_command.encode())
                 file_cut.close()
-                result = sendToPrinter(printer_name, temp_cut_file)
-
-            if result:
-                break
-        # lanza cajon
-        if not result and open_command:
-            temp_open_file: str = tempfile.mktemp('.esc_command')
-            file_cut = open(temp_open_file, 'b')
-            file_cut.write(open_command.encode())
-            file_cut.close()
-            result = sendToPrinter(printer_name, temp_open_file)
-    except Exception as error:
-        LOGGER.warning("Error: %s" % error)
-        result = str(error)
-
+                result = sendToPrinter(printer_name, temp_open_file)
+        except Exception as error:
+            result = "Error: %s" % error
+            LOGGER.warning(result)
 
     return result
 
-def sendToPrinter(printer: str , file_name):
-    result = ''
-    LOGGER.warning("SENDING TO PRINTER %s -> %s" % (printer, file_name))
-    if sys.platform.startswith('win'):
+
+def sendToPrinter(printer: str, file_name):
+    """Send document to printer."""
+    result = ""
+    LOGGER.debug("Sending to printer '%s' -> %s" % (printer, file_name))
+    if sys.platform.startswith("win"):
         args = [
-            "-dPrinted", "-dBATCH", "-dNOSAFER", "-dNOPAUSE", "-dNOPROMPT"
-            "-q",
+            "-dPrinted",
+            "-dBATCH",
+            "-dNOSAFER",
+            "-dNOPAUSE",
+            "-dNOPROMPT" "-q",
             "-dNumCopies#1",
             "-sDEVICE#mswinpr2",
             f'-sOutputFile#"%printer%{printer}"',
-            f'"{file_name}"'
+            f'"{file_name}"',
         ]
 
         try:
@@ -277,25 +301,12 @@ def sendToPrinter(printer: str , file_name):
             args = [a.encode(encoding) for a in args]
             ghostscript.Ghostscript(*args)
         except Exception as error:
-            result = error
+            result = str(error)
 
     else:
         try:
-            os.system('lp -d %s -n 2 %s' % (printer , file_name))        
+            os.system("lp -d %s -n 2 %s" % (printer, file_name))
         except Exception as error:
-            result = error
+            result = str(error)
 
     return result
-
-
-
-
-    
-
-    
-
-
-
-
-
-
