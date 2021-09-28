@@ -1,5 +1,5 @@
 """Main_window module."""
-from PyQt6 import QtWidgets, QtCore, uic
+from PyQt5 import QtWidgets, QtCore, uic
 import logging
 import requests
 import os
@@ -116,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow):
         table.setHorizontalHeaderLabels(fields)
         for col in range(len(fields)):
             table.horizontalHeader().setSectionResizeMode(
-                col, QtWidgets.QHeaderView.ResizeMode.ResizeToContents
+                col, QtWidgets.QHeaderView.ResizeToContents
             )
 
         idx_pk = 0
@@ -132,12 +132,8 @@ class MainWindow(QtWidgets.QMainWindow):
                     value = str(dato[col_num])
                     # print("Campo", field_name, "->", value)
                     text_item = QtWidgets.QTableWidgetItem(value)
-                    text_item.setTextAlignment(
-                        QtCore.Qt.AlignmentFlag.AlignVCenter + QtCore.Qt.AlignmentFlag.AlignRight
-                    )
-                    text_item.setFlags(
-                        QtCore.Qt.ItemFlag.ItemIsSelectable | QtCore.Qt.ItemFlag.ItemIsEnabled
-                    )
+                    text_item.setTextAlignment(QtCore.Qt.AlignVCenter + QtCore.Qt.AlignRight)
+                    text_item.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
                     table.setItem(row_num, col_num, text_item)
                 else:
                     # print("Boton borrar", row_num)
@@ -169,9 +165,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if col_num < len(fields) - 1:
                 value = ""
                 text_item = QtWidgets.QTableWidgetItem(value)
-                text_item.setTextAlignment(
-                    QtCore.Qt.AlignmentFlag.AlignVCenter + QtCore.Qt.AlignmentFlag.AlignRight
-                )
+                text_item.setTextAlignment(QtCore.Qt.AlignVCenter + QtCore.Qt.AlignRight)
                 table.setItem(row_num, col_num, text_item)
             else:
                 # print("Botón crear!", row_num)

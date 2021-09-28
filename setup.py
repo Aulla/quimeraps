@@ -9,7 +9,7 @@ with open("requirements.txt") as f:
 
 version_ = __VERSION__
 
-with open("README.rst", "r") as fh:
+with open("README", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -22,9 +22,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="",
     packages=setuptools.find_packages(),
-    package_data={
-        "quimeraps.client_gui": ["*.ui"],
-    },
+    package_data={"quimeraps.client_gui": ["*.ui"]},
     install_requires=required,
     keywords="eneboo pineboo printer json",
     python_requires=">=3.6.9",
@@ -32,7 +30,7 @@ setuptools.setup(
         "console_scripts": [
             "quimeraps_server=quimeraps.entry_points:startup_server",
             "quimeraps_client=quimeraps.entry_points:startup_client",
-            "quimeraps_daemon=quimeraps.entry_points:install_daemon"
+            "quimeraps_daemon=quimeraps.entry_points:install_daemon",
         ]
     },
     classifiers=[

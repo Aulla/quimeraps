@@ -5,7 +5,7 @@ import os
 
 def startup_client() -> None:
     """Startup client."""
-    from PyQt6 import QtWidgets
+    from PyQt5 import QtWidgets
 
     from quimeraps.client_gui import main_window
 
