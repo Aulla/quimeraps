@@ -249,7 +249,9 @@ def launchPrinter(
 
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
+                    LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
+                    LOGGER.info("Filling %s" % config.input)
                     instance.fill()
                     instance.export_pdf()
 
@@ -278,9 +280,9 @@ def launchPrinter(
                         file_cut.close()
                         result = sendToPrinter(printer_name, temp_open_file)
                 except Exception as error:
-                    result = "Error: %s" % error
+                    result = "Error: %s" % str(error)
                     LOGGER.warning(result)
-
+    LOGGER.info(result)
     return result
 
 

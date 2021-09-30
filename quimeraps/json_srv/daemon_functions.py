@@ -2,7 +2,6 @@
 from quimeraps.json_srv import logging
 import os
 
-LOGGER = logging.getLogger(__name__)
 SERVICE_FILE_NAME = "/etc/systemd/system/quimeraps.service"
 SERVICE_NAME = "quimeraps"
 
@@ -48,7 +47,6 @@ def install_linux_daemon():
     file_.writelines(["%s\n" % line for line in data])
     file_.close()
 
-    LOGGER.warning("File %s created" % SERVICE_FILE_NAME)
     os.system("systemctl daemon-reload")
     os.system("systemctl enable %s" % SERVICE_FILE_NAME)
     # os.system('update-rc.d %s defaults' % SERVICE_NAME)
