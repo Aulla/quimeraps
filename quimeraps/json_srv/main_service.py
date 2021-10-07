@@ -246,12 +246,14 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
-
+                    config.locale = 'es_ES'
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
+                    config.params = {"JSON_LOCALE" : "es_ES"}
                     LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
                     LOGGER.info("Filling %s" % config.input)
+                    
                     instance.fill()
                     instance.export_pdf()
 
