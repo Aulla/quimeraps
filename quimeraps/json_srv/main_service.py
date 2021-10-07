@@ -246,6 +246,7 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
+                    config.locale = "es_ES"
 
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
@@ -312,7 +313,7 @@ def sendToPrinter(printer: str, file_name):
 
     else:
         try:
-            os.system("lp -d %s -n 2 %s" % (printer, file_name))
+            os.system("lp -d %s %s" % (printer, file_name))
         except Exception as error:
             result = str(error)
 
