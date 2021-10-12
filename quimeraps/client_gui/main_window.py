@@ -105,7 +105,7 @@ class MainWindow(QtWidgets.QMainWindow):
         table.clear()
         table.setColumnCount(0)
 
-    def populateTable(self, name: str, data=[]) -> None:
+    def populateTable(self, name: str, data=None) -> None:
         """Load table contents."""
         fields = []
         fields += self._fields_printers if name == "printers" else self._fields_alias

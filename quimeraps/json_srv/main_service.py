@@ -319,7 +319,7 @@ def sendToPrinter(printer: str, file_name):
             encoding = locale.getpreferredencoding()
             args = [a.encode(encoding) for a in args]
             LOGGER.debug("Launching GS command with arguments %s" % args)
-            ghostscript.Ghostscript(*args)
+            LOGGER.debug(ghostscript.Ghostscript(*args))
             LOGGER.debug("STEP 10")
         except Exception as error:
             result = str(error)
