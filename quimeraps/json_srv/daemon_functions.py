@@ -1,9 +1,8 @@
 """Daemon functions module."""
-from quimeraps.json_srv import logging
 import os
 
 SERVICE_FILE_NAME = "/etc/systemd/system/quimeraps.service"
-SERVICE_NAME = "quimeraps"
+SERVICE_NAME = "QuimeraPrintService"
 
 
 def start():
@@ -30,8 +29,7 @@ def install_linux_daemon():
     data.append("# Quimera print service v%s" % __VERSION__)
     data.append("[Unit]")
     data.append("Description=Quimera print service")
-    # data.append('After=network.target')
-    data.append("StartLimitIntervalSec=0")
+    # data.append("StartLimitIntervalSec=0")
     data.append("")
     data.append("[Service]")
     data.append("Type=simple")
@@ -49,9 +47,6 @@ def install_linux_daemon():
 
     os.system("systemctl daemon-reload")
     os.system("systemctl enable %s" % SERVICE_FILE_NAME)
-    # os.system('update-rc.d %s defaults' % SERVICE_NAME)
-    # os.system("service quimeraps start")
-    # TODO: inicializar servicio al arrancar
 
 
 def remove_linux_daemon():
@@ -60,16 +55,23 @@ def remove_linux_daemon():
         os.system("service quimeraps stop")
         os.system("systemctl disable %s" % SERVICE_FILE_NAME)
         os.remove(SERVICE_FILE_NAME)
-        # os.system('update-rc.d -f %s remove' % SERVICE_NAME)
 
 
-def install_windows_service():
+def install_windows_daemon():
     """Install quimeraps as a service."""
     # TODO: recoger ruta correcta
-    real_path = os.path.dirname(os.path.realpath(__file__))
-    os.system('sc.exe create %s binPath= "%s/quimeraps_server.exe"' % (SERVICE_NAME, real_path))
+    real_path = os.path.dirname(os.path.realpath(os.path.join(__file__, "..", "..", "..", "..")))
+    command = 'sc.exe create %s binPath= "%s"' % (
+        SERVICE_NAME,
+        os.path.join(real_path, "Scripts", "quimeraps_server.exe"),
+    )
+    print("Comando", command)
+    os.system(command)
+
+    # TODO: hacer que sea automatico.
+    # TODO: https://nssm.cc/.
 
 
-def remove_windows_service() -> None:
+def remove_windows_daemon() -> None:
     """Remove service from windows."""
     os.system("sc.exe delete %s" % (SERVICE_NAME))

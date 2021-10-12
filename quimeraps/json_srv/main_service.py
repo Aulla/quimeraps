@@ -140,13 +140,16 @@ def printerRequest(**kwargs) -> str:
         if "open_cash_drawer" not in kwargs_names:
             kwargs["open_cash_drawer"] = False
 
-        result = launchPrinter(
-            kwargs["printer"],
-            kwargs["model"],
-            kwargs["cut"],
-            kwargs["open_cash_drawer"],
-            kwargs["data"],
-        )
+        try:
+            result = launchPrinter(
+                kwargs["printer"],
+                kwargs["model"],
+                kwargs["cut"],
+                kwargs["open_cash_drawer"],
+                kwargs["data"],
+            )
+        except Exception as error:
+            result = str(error)
 
     return result
 
@@ -246,14 +249,21 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
-                    config.locale = 'en_US'
+                    config.locale = "en_US"
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
+                    config.params = {
+                        "SUBREPORT_DIR": "%s%s"
+                        % (
+                            os.path.join(DATA_DIR, "subreports"),
+                            "\\" if sys.platform.startswith("win") else "/",
+                        )
+                    }
                     LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
                     LOGGER.info("Filling %s" % config.input)
                     LOGGER.warning("default %s" % instance.defaultLocale)
-                    
+
                     instance.fill()
                     instance.export_pdf()
 
@@ -308,7 +318,9 @@ def sendToPrinter(printer: str, file_name):
         try:
             encoding = locale.getpreferredencoding()
             args = [a.encode(encoding) for a in args]
+            LOGGER.debug("Launching GS command with arguments %s" % args)
             ghostscript.Ghostscript(*args)
+            LOGGER.debug("STEP 10")
         except Exception as error:
             result = str(error)
 

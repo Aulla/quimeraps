@@ -25,18 +25,18 @@ def startup_server() -> None:
         if os.geteuid() != 0:
             LOGGER.warning("This user is not super!.")
             return
-
     daemon_functions.start()
 
 
 def install_daemon() -> None:
     """Install daemon."""
-    if os.geteuid() != 0:
-        import logging
+    if not sys.platform.startswith("win"):
+        if os.geteuid() != 0:
+            import logging
 
-        LOGGER = logging.getLogger(__name__)
-        LOGGER.warning("This user is not super!.")
-        return
+            LOGGER = logging.getLogger(__name__)
+            LOGGER.warning("This user is not super!.")
+            return
 
     from quimeraps.json_srv import daemon_functions
 

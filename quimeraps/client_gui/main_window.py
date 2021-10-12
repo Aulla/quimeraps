@@ -3,11 +3,15 @@ from PyQt5 import QtWidgets, QtCore, uic
 import logging
 import requests
 import os
+import sys
 
 from typing import Any, List
 
 
 LOGGER = logging.getLogger(__name__)
+REFRESH_TIME = 1000
+if sys.platform.startswith("win"):
+    REFRESH_TIME = 5000
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -289,7 +293,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def initStatusChecker(self) -> None:
         """Initialize status_checker."""
         self._timer.timeout.connect(self.askToServerAlive)  # type: ignore [attr-defined]
-        self._timer.start(1000)
+        self._timer.start(REFRESH_TIME)
         LOGGER.warning("Status checker activated!")
 
     def askToServerAlive(self) -> None:

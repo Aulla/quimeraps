@@ -2,13 +2,18 @@
 import logging
 from logging import handlers
 import sys
+import os
 
 # https://stackoverflow.com/questions/13733552/logger-configuration-to-log-to-file-and-print-to-stdout
 
 
 def getLogger(name: str = None) -> "logging.Logger":
     """Return a custom logger."""
-    log_file = "/var/log/quimeraps.log" if not sys.platform.startswith("win") else "quimera.log"
+    log_file = (
+        "/var/log/quimeraps.log"
+        if not sys.platform.startswith("win")
+        else os.path.join(os.environ["ProgramFiles"], "quimeraPS", "quimera.log")
+    )
 
     log: "logging.Logger" = logging.getLogger(name)
     log.setLevel(logging.DEBUG)

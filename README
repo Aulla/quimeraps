@@ -4,3 +4,35 @@ It consists of 3 parts:
 -server. Json-rpc server processing calls
 -customer. PyQt6 interface in charge of viewing the status of the server and managing printers and models.
 -daemon. Allows you to install and / or remove the chimeraps service on the host operating system.
+
+Instalación:
+Requerimientos:
+* Java JRE 9 (probado con OpenJDK 11 en windows) (Setear JAVA_HOME)
+* Ghostscript (probado con 9.55 en windows)
+
+
+Windows.
+En consola con provilegios de administrador ejecutamos:
+pip install quimeraps
+
+Linux
+sudo -H pip3 install quimeraps
+
+
+
+Instalación servício:
+quimeraps_daemon install
+
+Desinstalacion servício:
+quimera_daemon remove
+
+Para comprobar si el servico/demónio funciona correctamente.
+quimeraps_sever
+
+
+
+
+
+
+
+
