@@ -41,6 +41,8 @@ class JsonClass:
         except Exception as error:
             data_response = wrappers.Response({"error": error}, mimetype="application/json")
         # TODO: meterlo en historial data_request y data response.
+        data_response.access_control_allow_origin = "*"
+
         return data_response
 
     def __del__(self):
