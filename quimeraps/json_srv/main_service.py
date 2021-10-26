@@ -13,6 +13,7 @@ import os
 import tempfile
 import locale
 import sys
+import json
 
 from typing import Dict, List, Optional, Union, Any
 
@@ -36,12 +37,20 @@ class JsonClass:
         """Json service."""
         response = JSONRPCResponseManager.handle(request.data, dispatcher)
         # data_request = request.data
+        found_error = False
         try:
             data_response = wrappers.Response(response.json, mimetype="application/json")
+            json_response = json.loads(data_response.response[0])
+            if json_response["result"]["response"]["result"] == 1:
+                found_error = True
+
         except Exception as error:
             data_response = wrappers.Response({"error": error}, mimetype="application/json")
+            found_error = True
         # TODO: meterlo en historial data_request y data response.
         data_response.access_control_allow_origin = "*"
+        if found_error:
+            data_response.status_code = 400
 
         return data_response
 
