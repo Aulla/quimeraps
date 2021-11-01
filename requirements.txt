@@ -2,4 +2,3 @@ werkzeug==2.0.1
 json-rpc==1.13.0
 PyQt5==5.15.2
 ghostscript==0.7
-pyreportjasper-aulla==2.1.3
