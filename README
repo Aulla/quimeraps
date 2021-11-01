@@ -9,14 +9,17 @@ Installation:
 Requirements:
 * Java JRE 9 (tested with OpenJDK 11 on windows) (Set JAVA_HOME in environment variables)
 * Ghostscript (tested with 9.55 on windows)
+* Git
 
 
 Windows.
 In console with administrator privileges we execute:
 pip install quimeraps
+pip install git+https://github.com/Aulla/pyreportjasper#egg=pyreportjasper
 
 Linux
 sudo -H pip3 install quimeraps
+sudo -H pip3 install git+https://github.com/Aulla/pyreportjasper#egg=pyreportjasper
 
 
 
