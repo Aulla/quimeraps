@@ -261,7 +261,7 @@ def launchPrinter(
                     config.output = output_file
                     config.dataFile = temp_json_file
                     config.locale = "es_ES"
-                    config.jsonLocale = "es_ES"
+                    config.jsonLocale = "en_US"
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
                     config.params = {
