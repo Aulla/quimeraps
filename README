@@ -15,11 +15,11 @@ Requirements:
 Windows.
 In console with administrator privileges we execute:
 pip install quimeraps
-pip install git+https://github.com/Aulla/pyreportjasper#egg=pyreportjasper
+pip install git+https://github.com/acesseonline/pyreportjasper@master#egg=pyreportjasper
 
 Linux
 sudo -H pip3 install quimeraps
-sudo -H pip3 install git+https://github.com/Aulla/pyreportjasper#egg=pyreportjasper
+sudo -H pip3 install git+https://github.com/acesseonline/pyreportjasper@master#egg=pyreportjasper
 
 
 
