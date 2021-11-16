@@ -137,6 +137,8 @@ def printerRequest(**kwargs) -> str:
     only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
+    LOGGER.warning("Only pdf: %s, pdf_name: %s " % (only_pdf, pdf_name))
+
     for name in ["printer"]:
         if name not in kwargs_names:
             result = "%s field not specified" % name
@@ -160,8 +162,9 @@ def printerRequest(**kwargs) -> str:
                 kwargs["cut"],
                 kwargs["open_cash_drawer"],
                 kwargs["data"],
-                only_pdf,
+                0,
                 pdf_name,
+                only_pdf,
             )
         except Exception as error:
             result = str(error)
@@ -207,8 +210,8 @@ def launchPrinter(
     open_cd: bool,
     data: List[Any],
     copies: int = 0,
-    only_pdf=False,
     pdf_name=None,
+    only_pdf=False,
 ) -> str:
     """Print a request."""
     result = ""
@@ -241,6 +244,8 @@ def launchPrinter(
         if not os.path.exists(reports_dir):
             LOGGER.warning("Making reports folder (%s)" % reports_dir)
             os.mkdir(reports_dir)
+
+        LOGGER.warning("Only pdf: %s, pdf_name: %s " % (only_pdf, pdf_name))
 
         input_file = "%s.jrxml" % os.path.join(reports_dir, "%s" % model_name)
 
