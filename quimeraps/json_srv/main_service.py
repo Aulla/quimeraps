@@ -1,21 +1,20 @@
 """main_service module."""
 
-from werkzeug import serving, wrappers
-
-from pyreportjasper import report, config as jasper_config  # type: ignore [import]
-import ghostscript  # type: ignore [import]
-from quimeraps.json_srv import data as data_module
-from quimeraps.json_srv import logging
-from quimeraps import __VERSION__, DATA_DIR
-
-from jsonrpc import JSONRPCResponseManager, dispatcher  # type: ignore [import]
 import os
 import tempfile
 import locale
 import sys
 import json
-
 from typing import Dict, List, Optional, Union, Any
+from werkzeug import serving, wrappers
+
+from pyreportjasper import report, config as jasper_config  # type: ignore [import]
+import ghostscript  # type: ignore [import]
+from jsonrpc import JSONRPCResponseManager, dispatcher  # type: ignore [import]
+from quimeraps.json_srv import data as data_module
+from quimeraps.json_srv import logging
+from quimeraps import __VERSION__, DATA_DIR
+
 
 CONN: "data_module.SQLiteClass"
 
@@ -133,8 +132,11 @@ def dataRequest(**kwargs) -> List[Any]:
 def printerRequest(**kwargs) -> str:
     """Print requests."""
     result = ""
-
     kwargs_names = kwargs.keys()
+
+    only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
+    pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
+
     for name in ["printer"]:
         if name not in kwargs_names:
             result = "%s field not specified" % name
@@ -158,6 +160,8 @@ def printerRequest(**kwargs) -> str:
                 kwargs["cut"],
                 kwargs["open_cash_drawer"],
                 kwargs["data"],
+                only_pdf,
+                pdf_name,
             )
         except Exception as error:
             result = str(error)
@@ -197,13 +201,20 @@ def resolveModel(model_alias: str):
 
 
 def launchPrinter(
-    printer_alias: str, model_alias: str, cut: bool, open_cd: bool, data: List[Any], copies: int = 0
+    printer_alias: str,
+    model_alias: str,
+    cut: bool,
+    open_cd: bool,
+    data: List[Any],
+    copies: int = 0,
+    only_pdf=False,
+    pdf_name=None,
 ) -> str:
     """Print a request."""
     result = ""
     # resolver nombre impresora
     printer_data = resolvePrinter(printer_alias)
-    if not printer_data:
+    if not printer_data and not only_pdf:
         result = "Printer alias (%s) doesn't exists!" % printer_alias
         LOGGER.warning(result)
 
@@ -237,7 +248,10 @@ def launchPrinter(
             result = "Model (%s) doesn't exists!" % input_file
             LOGGER.warning(result)
         else:
-            output_file = tempfile.mktemp()
+
+            output_file = (
+                os.path.join(tempfile.gettempdir(), pdf_name) if pdf_name else tempfile.mktemp()
+            )
             output_file_pdf = output_file + ".pdf"
 
             # generamos temporal con datos json
@@ -279,30 +293,32 @@ def launchPrinter(
                     instance.fill()
                     instance.export_pdf()
 
-                    for num in range(num_copies):
-                        LOGGER.info(
-                            "Sendign copy %s, printer: %s, model: %s"
-                            % (num + 1, printer_name, model_name)
-                        )
-                        result = sendToPrinter(printer_name, output_file_pdf)
+                    if not only_pdf:
+                        for num in range(num_copies):
 
-                        # lanza corte
-                        if not result and cut_command:
-                            temp_cut_file: str = tempfile.mktemp(".esc_command")
-                            file_cut = open(temp_cut_file, "b")
-                            file_cut.write(cut_command.encode())
+                            LOGGER.info(
+                                "Sendign copy %s, printer: %s, model: %s"
+                                % (num + 1, printer_name, model_name)
+                            )
+                            result = sendToPrinter(printer_name, output_file_pdf)
+
+                            # lanza corte
+                            if not result and cut_command:
+                                temp_cut_file: str = tempfile.mktemp(".esc_command")
+                                file_cut = open(temp_cut_file, "b")
+                                file_cut.write(cut_command.encode())
+                                file_cut.close()
+                                result = sendToPrinter(printer_name, temp_cut_file)
+
+                            if result:
+                                break
+                        # lanza cajon
+                        if not result and open_command:
+                            temp_open_file: str = tempfile.mktemp(".esc_command")
+                            file_cut = open(temp_open_file, "b")
+                            file_cut.write(open_command.encode())
                             file_cut.close()
-                            result = sendToPrinter(printer_name, temp_cut_file)
-
-                        if result:
-                            break
-                    # lanza cajon
-                    if not result and open_command:
-                        temp_open_file: str = tempfile.mktemp(".esc_command")
-                        file_cut = open(temp_open_file, "b")
-                        file_cut.write(open_command.encode())
-                        file_cut.close()
-                        result = sendToPrinter(printer_name, temp_open_file)
+                            result = sendToPrinter(printer_name, temp_open_file)
                 except Exception as error:
                     result = "Error: %s" % str(error)
                     LOGGER.warning(result)
