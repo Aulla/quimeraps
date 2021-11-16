@@ -74,7 +74,7 @@ def processRequest(**kwargs) -> Dict[str, Any]:
         # LOGGER.warning("NEW %s!" % (type_))
         if type_ == "new_job":
             data_or_str = printerRequest(**kwargs["arguments"])
-            is_error = data_or_str != ""
+            is_error = data_or_str != "" and not data_or_str.startswith(tempfile.gettempdir())
         elif type_ == "alive":
             data_or_str = aliveRequest()
         elif type_ == "data":
@@ -137,8 +137,6 @@ def printerRequest(**kwargs) -> str:
     only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
-    LOGGER.warning("Only pdf: %s, pdf_name: %s " % (only_pdf, pdf_name))
-
     for name in ["printer"]:
         if name not in kwargs_names:
             result = "%s field not specified" % name
@@ -162,7 +160,6 @@ def printerRequest(**kwargs) -> str:
                 kwargs["cut"],
                 kwargs["open_cash_drawer"],
                 kwargs["data"],
-                0,
                 pdf_name,
                 only_pdf,
             )
@@ -209,7 +206,6 @@ def launchPrinter(
     cut: bool,
     open_cd: bool,
     data: List[Any],
-    copies: int = 0,
     pdf_name=None,
     only_pdf=False,
 ) -> str:
@@ -238,14 +234,12 @@ def launchPrinter(
         cut_command: Optional[str] = printer_data[1] if cut and printer_data[1] else None
         open_command: Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
         model_name = model_data[0]
-        num_copies = copies if copies else int(model_data[1]) if model_data[1] else 1
+        num_copies = int(model_data[1]) if model_data[1] else 1
 
         reports_dir = os.path.join(os.path.abspath(DATA_DIR), "reports")
         if not os.path.exists(reports_dir):
             LOGGER.warning("Making reports folder (%s)" % reports_dir)
             os.mkdir(reports_dir)
-
-        LOGGER.warning("Only pdf: %s, pdf_name: %s " % (only_pdf, pdf_name))
 
         input_file = "%s.jrxml" % os.path.join(reports_dir, "%s" % model_name)
 
@@ -257,7 +251,9 @@ def launchPrinter(
             output_file = (
                 os.path.join(tempfile.gettempdir(), pdf_name) if pdf_name else tempfile.mktemp()
             )
-            output_file_pdf = output_file + ".pdf"
+            output_file_pdf = output_file + "%s" % (
+                ".pdf" if not output_file.lower().endswith(".pdf") else ""
+            )
 
             # generamos temporal con datos json
             temp_json_file = tempfile.mktemp(".json")
@@ -324,6 +320,7 @@ def launchPrinter(
                             file_cut.write(open_command.encode())
                             file_cut.close()
                             result = sendToPrinter(printer_name, temp_open_file)
+                    result = output_file_pdf
                 except Exception as error:
                     result = "Error: %s" % str(error)
                     LOGGER.warning(result)
