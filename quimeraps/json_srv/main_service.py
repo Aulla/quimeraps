@@ -241,7 +241,9 @@ def launchPrinter(
             LOGGER.warning("Making reports folder (%s)" % reports_dir)
             os.mkdir(reports_dir)
 
-        input_file = "%s.jrxml" % os.path.join(reports_dir, "%s" % model_name)
+        input_file = "%s" % os.path.join(reports_dir, "%s" % model_name)
+        if not input_file.lower().endswith(".jrxml"):
+            input_file += ".jrxml"
 
         if not os.path.exists(input_file):
             result = "Model (%s) doesn't exists!" % input_file
