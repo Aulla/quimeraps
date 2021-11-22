@@ -258,13 +258,14 @@ def launchPrinter(
             # generamos temporal con datos json
             temp_json_file = tempfile.mktemp(".json")
             file_ = open(temp_json_file, "w", encoding="UTF-8")
-            file_.write(str({"query": {"registers": data}}))
+            file_.write(str({"query": {"registers": data}}).replace(": None", ": null"))
             file_.close()
 
             if not os.path.exists(temp_json_file):
                 result = "JSON file (%s) doesn't exists!" % temp_json_file
                 LOGGER.warning(result)
             else:
+
                 LOGGER.info(
                     "json :%s, jasper: %s, result: %s"
                     % (temp_json_file, input_file, output_file_pdf)
