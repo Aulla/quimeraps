@@ -208,15 +208,19 @@ def printerRequest(**kwargs) -> str:
     group_name = kwargs["group_name"] if "group_name" in kwargs_names else None
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
-    for name in ["printer"]:
-        if name not in kwargs_names:
-            result = "%s field not specified" % name
+    if not only_pdf:
+        for name in ["printer"]:
+            if name not in kwargs_names:
+                result = "%s field not specified" % name
 
     if "model" not in kwargs_names:
         kwargs["model"] = ""
 
     if "data" not in kwargs_names:
         kwargs["data"] = []
+
+    if "report_name" not in kwargs_names:
+        kwargs["report_name"] = ""
 
     if not result:
         if "cut" not in kwargs_names:
@@ -226,7 +230,7 @@ def printerRequest(**kwargs) -> str:
 
         try:
             result = launchPrinter(
-                kwargs["printer"],
+                kwargs["printer"] if not only_pdf else "",
                 kwargs["model"],
                 kwargs["cut"],
                 kwargs["open_cash_drawer"],
@@ -234,6 +238,7 @@ def printerRequest(**kwargs) -> str:
                 pdf_name,
                 only_pdf,
                 group_name,
+                kwargs["report_name"],
             )
         except Exception as error:
             result = str(error)
@@ -281,6 +286,7 @@ def launchPrinter(
     pdf_name=None,
     only_pdf=False,
     group_name=None,
+    model_name="",
 ) -> str:
     """Print a request."""
     result = ""
@@ -291,7 +297,7 @@ def launchPrinter(
         LOGGER.warning(result)
 
     # resolver nomber model
-    if not result:
+    if not result and not model_name:
         model_data = resolveModel(model_alias)
         if not model_data:
             result = "Model alias (%s) doesn't exists!" % model_alias
@@ -303,11 +309,11 @@ def launchPrinter(
 
     if not result:  # Si no hay fallo previo
         # crear request
-        printer_name = printer_data[0]
+        printer_name = printer_data[0] if not only_pdf else None
         cut_command: Optional[str] = printer_data[1] if cut and printer_data[1] else None
         open_command: Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
-        model_name = model_data[0]
-        num_copies = int(model_data[1]) if model_data[1] else 1
+        model_name = model_data[0] if not model_name else model_name
+        num_copies = int(model_data[1]) if not model_name and model_data[1] else 1
 
         reports_dir = os.path.join(
             os.path.abspath(DATA_DIR), group_name if group_name else "", "reports"
