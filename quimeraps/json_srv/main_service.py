@@ -5,6 +5,7 @@ import tempfile
 import locale
 import sys
 import json
+import base64
 from typing import Dict, List, Optional, Union, Any
 from werkzeug import serving, wrappers
 
@@ -40,11 +41,13 @@ class JsonClass:
         try:
             data_response = wrappers.Response(response.json, mimetype="application/json")
             json_response = json.loads(data_response.response[0])
+            # LOGGER.warning("Request: %s, Response: %s" % (request.data, json_response))
             if json_response["result"]["response"]["result"] == 1:
                 found_error = True
 
         except Exception as error:
             data_response = wrappers.Response({"error": error}, mimetype="application/json")
+            LOGGER.warning("Error %s" % str(error))
             found_error = True
         # TODO: meterlo en historial data_request y data response.
         data_response.access_control_allow_origin = "*"
@@ -61,10 +64,77 @@ class JsonClass:
 @dispatcher.add_method
 def requestDispatcher(**kwargs):
     """Dispatch print requests."""
-    return {"response": processRequest(**kwargs)}
+    return {"response": processPrintRequest(**kwargs)}
 
 
-def processRequest(**kwargs) -> Dict[str, Any]:
+@dispatcher.add_method
+def syncDispatcher(**kwargs):
+    """Dispatch sync requests."""
+
+    return {"response": processSyncRequest(**kwargs)}
+
+
+def processSyncRequest(**kwargs) -> Dict[str, Any]:
+    """Process sync request."""
+
+    group_name = kwargs["group_name"]
+    result = processSync(group_name, kwargs["arguments"])
+    return {"result": 1 if result else 0, "data": result}
+
+
+def processSync(group_name, arguments) -> bool:
+    """ Process sync"""
+    result = ""
+    try:
+        sync_folder = os.path.join(os.path.abspath(DATA_DIR), group_name)
+        if not os.path.exists(sync_folder):
+            LOGGER.warning("Making folder %s" % sync_folder)
+            os.mkdir(sync_folder)
+        file_type = (
+            "reports"
+            if arguments["file_type"] == "report"
+            else "subreports"
+            if arguments["file_type"] == "subreport"
+            else "images"
+        )
+        type_folder = os.path.join(sync_folder, file_type)
+        if not os.path.exists(type_folder):
+            LOGGER.warning("Making folder %s" % type_folder)
+            os.mkdir(type_folder)
+        file_path = os.path.join(type_folder, arguments["file_name"])
+        file_path_compiled = file_path.replace(".jrxml", ".jasper")
+        if arguments["file_delete"] == "1":
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            if os.path.exists(file_path):
+                result = "No se ha podido eliminar el fichero %s" % arguments["file_name"]
+            else:
+                if file_type == "subreports":
+                    if os.path.exists(file_path_compiled):
+                        os.remove(file_path_compiled)
+                    if os.path.exists(file_path_compiled):
+                        result = "No se ha podido eliminar el fichero %s" % file_path_compiled
+        else:
+            file = open(file_path, "wb")
+            file.write(base64.decodebytes(arguments["file_data"].encode()))
+            file.close()
+
+            if file_type == "subreports":
+                # compilamos el subreport.
+                config = jasper_config.Config()
+                config.output = file_path_compiled
+                config.writeJasper = True
+                instance = report.Report(config, file_path)
+                instance.compile()
+
+    except Exception as error:
+        result = str(error)
+
+    LOGGER.warning("devolviendo %s" % result)
+    return result
+
+
+def processPrintRequest(**kwargs) -> Dict[str, Any]:
     """Process print request."""
     is_error: bool = False
     data_or_str: Union[str, List[Any]] = ""
@@ -135,6 +205,7 @@ def printerRequest(**kwargs) -> str:
     kwargs_names = kwargs.keys()
 
     only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
+    group_name = kwargs["group_name"] if "group_name" in kwargs_names else None
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
     for name in ["printer"]:
@@ -162,6 +233,7 @@ def printerRequest(**kwargs) -> str:
                 kwargs["data"],
                 pdf_name,
                 only_pdf,
+                group_name,
             )
         except Exception as error:
             result = str(error)
@@ -208,6 +280,7 @@ def launchPrinter(
     data: List[Any],
     pdf_name=None,
     only_pdf=False,
+    group_name=None,
 ) -> str:
     """Print a request."""
     result = ""
@@ -236,7 +309,9 @@ def launchPrinter(
         model_name = model_data[0]
         num_copies = int(model_data[1]) if model_data[1] else 1
 
-        reports_dir = os.path.join(os.path.abspath(DATA_DIR), "reports")
+        reports_dir = os.path.join(
+            os.path.abspath(DATA_DIR), group_name if group_name else "", "reports"
+        )
         if not os.path.exists(reports_dir):
             LOGGER.warning("Making reports folder (%s)" % reports_dir)
             os.mkdir(reports_dir)
@@ -285,7 +360,11 @@ def launchPrinter(
                     config.params = {
                         "SUBREPORT_DIR": "%s%s"
                         % (
-                            os.path.join(DATA_DIR, "subreports"),
+                            os.path.join(
+                                os.path.abspath(DATA_DIR),
+                                group_name if group_name else "",
+                                "subreports",
+                            ),
                             "\\" if sys.platform.startswith("win") else "/",
                         )
                     }
