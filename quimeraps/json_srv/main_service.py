@@ -156,7 +156,21 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
         is_error = True
         data_or_str = "type field is not defined"
 
-    return {"result": 1 if is_error else 0, "data": data_or_str}
+    return {
+        "result": 1 if is_error else 0,
+        "data": fileToBase64(data_or_str)
+        if "return_base64" in kwargs.keys() and kwargs["return_base64"] == 1 and not is_error
+        else data_or_str,
+    }
+
+
+def fileToBase64(file_name) -> str:
+    """Return base64 file content."""
+
+    file = open(file_name, "rb")
+    result = base64.b64encode(file.read())
+    file.close()
+    return result.decode()
 
 
 def aliveRequest() -> str:
