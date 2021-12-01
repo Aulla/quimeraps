@@ -145,10 +145,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
         # LOGGER.warning("NEW %s!" % (type_))
         if type_ == "new_job":
             data_or_str = printerRequest(**kwargs["arguments"])
-            if return_base64:
-                is_error = len(data_or_str) < 500
-            else:
-                is_error = not data_or_str.startswith(tempfile.gettempdir())
+            is_error = not os.path.exists(data_or_str)
         elif type_ == "alive":
             data_or_str = aliveRequest()
         elif type_ == "data":
