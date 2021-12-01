@@ -157,7 +157,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
         is_error = True
         data_or_str = "type field is not defined"
 
-    LOGGER.warning("Result %s" % ("Ok" if is_error else "Failed"))
+    LOGGER.warning("Result %s" % ("Failed" if is_error else "Ok"))
     return {
         "result": 1 if is_error else 0,
         "data": fileToBase64(data_or_str) if return_base64 and not is_error else data_or_str,
