@@ -138,13 +138,17 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
     """Process print request."""
     is_error: bool = False
     data_or_str: Union[str, List[Any]] = ""
+    return_base64: bool = "return_base64" in kwargs.keys() and kwargs["return_base64"] == 1
 
     if "type" in kwargs.keys():
         type_ = kwargs["type"]
         # LOGGER.warning("NEW %s!" % (type_))
         if type_ == "new_job":
             data_or_str = printerRequest(**kwargs["arguments"])
-            is_error = data_or_str != "" and not data_or_str.startswith(tempfile.gettempdir())
+            if return_base64:
+                is_error = len(data_or_str) < 500
+            else:
+                is_error = not data_or_str.startswith(tempfile.gettempdir())
         elif type_ == "alive":
             data_or_str = aliveRequest()
         elif type_ == "data":
@@ -158,9 +162,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
 
     return {
         "result": 1 if is_error else 0,
-        "data": fileToBase64(data_or_str)
-        if "return_base64" in kwargs.keys() and kwargs["return_base64"] == 1 and not is_error
-        else data_or_str,
+        "data": fileToBase64(data_or_str) if return_base64 and not is_error else data_or_str,
     }
 
 
