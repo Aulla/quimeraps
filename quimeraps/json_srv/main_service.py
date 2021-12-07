@@ -352,10 +352,11 @@ def launchPrinter(
                 ".pdf" if not output_file.lower().endswith(".pdf") else ""
             )
 
+            data_dumps = json.dumps({"query": {"registers": data}})
             # generamos temporal con datos json
             temp_json_file = tempfile.mktemp(".json")
             file_ = open(temp_json_file, "w", encoding="UTF-8")
-            file_.write(str({"query": {"registers": data}}).replace(": None", ": null"))
+            file_.write(data_dumps)
             file_.close()
 
             if not os.path.exists(temp_json_file):
