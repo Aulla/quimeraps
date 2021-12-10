@@ -38,12 +38,19 @@ class JsonClass:
         response = JSONRPCResponseManager.handle(request.data, dispatcher)
         # data_request = request.data
         found_error = False
+        json_response = {}
         try:
             data_response = wrappers.Response(response.json, mimetype="application/json")
             json_response = json.loads(data_response.response[0])
             # LOGGER.warning("Request: %s, Response: %s" % (request.data, json_response))
-            if json_response["result"]["response"]["result"] == 1:
+            if "result" not in json_response:
                 found_error = True
+                LOGGER.warning(
+                    "Error resolving request: %s,data_received: %s, dispatcher: %s, data_response: %s "
+                    % (request, request.data, dispatcher, data_response.response[0])
+                )
+            elif json_response["result"]["response"]["result"] == 1:
+                found_error = 1
 
         except Exception as error:
             data_response = wrappers.Response({"error": error}, mimetype="application/json")
