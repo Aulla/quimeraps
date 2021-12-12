@@ -58,6 +58,8 @@ class JsonClass:
             found_error = True
         # TODO: meterlo en historial data_request y data response.
         data_response.access_control_allow_origin = "*"
+        data_response.access_control_allow_methods = ["POST", "OPTIONS"]
+        data_response.access_control_allow_headers = ["Content-Type"]
         if found_error:
             data_response.status_code = 400
 
