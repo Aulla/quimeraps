@@ -26,6 +26,10 @@ sudo -H pip3 install git+https://github.com/acesseonline/pyreportjasper@master#e
 Service installation (Linux):
 quimeraps_daemon install. This service can be managed in the style of service quimeraps [start, stop, restart]
 
+Service installation (Windows):
+Download NSSM  from https://nssm.cc/download
+
+Use "nssm.exe install QuimeraPrintService". Set quimeraps_server path and accept. 
 
 
 Uninstall service (Linux):
