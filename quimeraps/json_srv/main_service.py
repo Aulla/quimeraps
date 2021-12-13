@@ -335,8 +335,8 @@ def launchPrinter(
         printer_name = printer_data[0] if not only_pdf else None
         cut_command: Optional[str] = printer_data[1] if cut and printer_data[1] else None
         open_command: Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
-        model_name = model_data[0] if not model_name else model_name
-        num_copies = int(model_data[1]) if not model_name and model_data[1] else 1
+        model_name = model_data[0] if not model_name and model_data else model_name
+        num_copies = int(model_data[1]) if model_data and model_data[1] else 1
 
         reports_dir = os.path.join(
             os.path.abspath(DATA_DIR), group_name if group_name else "", "reports"
@@ -462,7 +462,6 @@ def sendToPrinter(printer: str, file_name):
             args = [a.encode(encoding) for a in args]
             LOGGER.debug("Launching GS command with arguments %s" % args)
             LOGGER.debug(ghostscript.Ghostscript(*args))
-            LOGGER.debug("STEP 10")
         except Exception as error:
             result = str(error)
 
