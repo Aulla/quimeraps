@@ -166,7 +166,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
         is_error = True
         data_or_str = "type field is not defined"
 
-    LOGGER.warning("Result %s" % ("Failed" if is_error else "Ok"))
+    LOGGER.warning("Result %s: data: %s" % ("Failed" if is_error else "Ok", data_or_str))
     return {
         "result": 1 if is_error else 0,
         "data": fileToBase64(data_or_str) if return_base64 and not is_error else data_or_str,
@@ -315,6 +315,7 @@ def launchPrinter(
     result = ""
     # resolver nombre impresora
     printer_data = resolvePrinter(printer_alias)
+    model_data = None
     if not printer_data and not only_pdf:
         result = "Printer alias (%s) doesn't exists!" % printer_alias
         LOGGER.warning(result)
