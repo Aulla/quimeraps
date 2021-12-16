@@ -415,9 +415,10 @@ def launchPrinter(
                             "\\" if sys.platform.startswith("win") else "/",
                         )
                     }
-
-                    for param_key, param_value in params.items():
-                        config.params[param_key] = param_value
+                    if params:
+                        for param_key, param_value in params.items():
+                            LOGGER.info("Adding param %s = %s" % (param_key, param_value))
+                            config.params[param_key] = param_value
 
                     LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
