@@ -276,6 +276,7 @@ def printerRequest(**kwargs) -> str:
                 only_pdf,
                 group_name,
                 kwargs["report_name"],
+                kwargs["params"] if "params" in kwargs_names else None,
             )
         except Exception as error:
             result = str(error)
@@ -324,6 +325,7 @@ def launchPrinter(
     only_pdf=False,
     group_name=None,
     model_name="",
+    params: Dict = {},
 ) -> str:
     """Print a request."""
     result = ""
@@ -413,6 +415,10 @@ def launchPrinter(
                             "\\" if sys.platform.startswith("win") else "/",
                         )
                     }
+
+                    for param_key, param_value in params.items():
+                        config.params[param_key] = param_value
+
                     LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
                     LOGGER.info("Filling %s" % config.input)
