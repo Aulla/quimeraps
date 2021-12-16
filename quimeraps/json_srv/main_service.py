@@ -41,8 +41,8 @@ class JsonClass:
             else:
                 ssl_context_ = "adhoc"
         LOGGER.info(
-            "Using SSL: %s, adhoc: %s, %s"
-            % (ssl_context_ is None, isinstance(ssl_context_, str), ssl_context_)
+            "Using SSL: %s, adhoc: %s, files: %s"
+            % (ssl_context_ is not None, isinstance(ssl_context_, str), ssl_context_)
         )
         serving.run_simple("0.0.0.0", 4000, self.service, ssl_context=ssl_context_)
 
