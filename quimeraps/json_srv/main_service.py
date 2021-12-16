@@ -30,7 +30,21 @@ class JsonClass:
         global CONN
         LOGGER.info("QuimeraPS service v.%s starts." % (__VERSION__))
         CONN = data_module.SQLiteClass()
-        serving.run_simple("0.0.0.0", 4000, self.service)
+        ssl_context_ = None
+        cert_dir = os.path.join(os.path.abspath(DATA_DIR), "cert")
+
+        if os.path.exists(cert_dir):
+            cert_file = os.path.join(cert_dir, "ssl.cert")
+            cert_key_file = os.path.join(cert_dir, "ssl.key")
+            if os.path.exists(cert_key_file):
+                ssl_context_ = (cert_file, cert_key_file)
+            else:
+                ssl_context_ = "adhoc"
+        LOGGER.info(
+            "Using SSL: %s, adhoc: %s, %s"
+            % (ssl_context_ is None, isinstance(ssl_context_, str), ssl_context_)
+        )
+        serving.run_simple("0.0.0.0", 4000, self.service, ssl_context=ssl_context_)
 
     @wrappers.Request.application  # type: ignore  [arg-type]
     def service(self, request) -> "wrappers.Response":
