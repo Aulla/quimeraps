@@ -400,8 +400,12 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
-                    config.locale = "es_ES"
-                    config.jsonLocale = "en_US"
+                    config.locale = (
+                        params["REPORT_LOCALE"] if "REPORT_LOCALE" in params.keys() else "es_ES"
+                    )
+                    config.jsonLocale = (
+                        params["JSON_LOCALE"] if "JSON_LOCALE" in params.keys() else "en_US"
+                    )
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
                     config.params = {
@@ -418,13 +422,15 @@ def launchPrinter(
                     if params:
                         for param_key, param_value in params.items():
                             LOGGER.info("Adding param %s = %s" % (param_key, param_value))
+                            if param_key in ["REPORT_LOCALE"]:
+                                continue
                             config.params[param_key] = param_value
 
                     LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
                     LOGGER.info("Filling %s" % config.input)
-                    LOGGER.warning("default %s" % instance.defaultLocale)
-
+                    LOGGER.warning("Default locale %s" % instance.defaultLocale)
+                    LOGGER.warning("Current locale %s" % instance.config.locale)
                     instance.fill()
                     instance.export_pdf()
 
