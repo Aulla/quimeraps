@@ -142,7 +142,7 @@ def processSync(group_name, arguments) -> bool:
             file.write(base64.decodebytes(arguments["file_data"].encode()))
             file.close()
 
-            if file_type == "subreports":
+            if file_type == "subreports" and file_path.endswith(".jrxml"):
                 # compilamos el subreport.
                 config = jasper_config.Config()
                 config.output = file_path_compiled
