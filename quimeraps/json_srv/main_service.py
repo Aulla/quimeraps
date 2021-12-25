@@ -279,7 +279,7 @@ def printerRequest(**kwargs) -> str:
                 only_pdf,
                 group_name,
                 kwargs["report_name"],
-                kwargs["params"] if "params" in kwargs_names else None,
+                kwargs["params"] if "params" in kwargs_names else {},
             )
         except Exception as error:
             result = str(error)
