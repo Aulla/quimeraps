@@ -54,9 +54,7 @@ class JsonClass:
         found_error = False
         json_response = {}
         try:
-            data_response = wrappers.Response(
-                response.json, mimetype="application/json"
-            )
+            data_response = wrappers.Response(response.json, mimetype="application/json")
             json_response = json.loads(data_response.response[0])
             # LOGGER.warning("Request: %s, Response: %s" % (request.data, json_response))
             if "result" not in json_response:
@@ -69,9 +67,7 @@ class JsonClass:
                 found_error = 1
 
         except Exception as error:
-            data_response = wrappers.Response(
-                {"error": error}, mimetype="application/json"
-            )
+            data_response = wrappers.Response({"error": error}, mimetype="application/json")
             LOGGER.warning("Error %s" % str(error))
             found_error = True
         # TODO: meterlo en historial data_request y data response.
@@ -110,7 +106,7 @@ def processSyncRequest(**kwargs) -> Dict[str, Any]:
 
 
 def processSync(group_name, arguments) -> bool:
-    """ Process sync"""
+    """Process sync"""
     result = ""
     try:
         sync_folder = os.path.join(os.path.abspath(DATA_DIR), group_name)
@@ -130,18 +126,13 @@ def processSync(group_name, arguments) -> bool:
             if os.path.exists(file_path):
                 os.remove(file_path)
             if os.path.exists(file_path):
-                result = (
-                    "No se ha podido eliminar el fichero %s" % arguments["file_name"]
-                )
+                result = "No se ha podido eliminar el fichero %s" % arguments["file_name"]
             else:
                 if file_type == "subreports":
                     if os.path.exists(file_path_compiled):
                         os.remove(file_path_compiled)
                     if os.path.exists(file_path_compiled):
-                        result = (
-                            "No se ha podido eliminar el fichero %s"
-                            % file_path_compiled
-                        )
+                        result = "No se ha podido eliminar el fichero %s" % file_path_compiled
         else:
             file = open(file_path, "wb")
             file.write(base64.decodebytes(arguments["file_data"].encode()))
@@ -166,9 +157,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
     """Process print request."""
     is_error: bool = False
     data_or_str: Union[str, List[Any]] = ""
-    return_base64: bool = "return_base64" in kwargs.keys() and kwargs[
-        "return_base64"
-    ] == 1
+    return_base64: bool = "return_base64" in kwargs.keys() and kwargs["return_base64"] == 1
 
     if "type" in kwargs.keys():
         type_ = kwargs["type"]
@@ -193,9 +182,7 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
     )
     return {
         "result": 1 if is_error else 0,
-        "data": fileToBase64(data_or_str)
-        if return_base64 and not is_error
-        else data_or_str,
+        "data": fileToBase64(data_or_str) if return_base64 and not is_error else data_or_str,
     }
 
 
@@ -227,9 +214,7 @@ def dataRequest(**kwargs) -> List[Any]:
     # values = kwargs['values'] if 'values' in kwargs.keys() else []
     raw_text = kwargs["raw"] if "raw" in kwargs.keys() else ""
     with_response = (
-        True
-        if "with_response" in kwargs.keys() and kwargs["with_response"] == 1
-        else False
+        True if "with_response" in kwargs.keys() and kwargs["with_response"] == 1 else False
     )
     result = "ok"
     try:
@@ -364,12 +349,8 @@ def launchPrinter(
     if not result:  # Si no hay fallo previo
         # crear request
         printer_name = printer_data[0] if not only_pdf else None
-        cut_command: Optional[str] = printer_data[1] if cut and printer_data[
-            1
-        ] else None
-        open_command: Optional[str] = printer_data[2] if open_cd and printer_data[
-            2
-        ] else None
+        cut_command: Optional[str] = printer_data[1] if cut and printer_data[1] else None
+        open_command: Optional[str] = printer_data[2] if open_cd and printer_data[2] else None
         model_name = model_data[0] if not model_name and model_data else model_name
         num_copies = int(model_data[1]) if model_data and model_data[1] else 1
 
@@ -388,11 +369,8 @@ def launchPrinter(
             result = "Model (%s) doesn't exists!" % input_file
             LOGGER.warning(result)
         else:
-
             output_file = (
-                os.path.join(tempfile.gettempdir(), pdf_name)
-                if pdf_name
-                else tempfile.mktemp()
+                os.path.join(tempfile.gettempdir(), pdf_name) if pdf_name else tempfile.mktemp()
             )
             output_file_pdf = output_file + "%s" % (
                 ".pdf" if not output_file.lower().endswith(".pdf") else ""
@@ -409,15 +387,12 @@ def launchPrinter(
                 result = "JSON file (%s) doesn't exists!" % temp_json_file
                 LOGGER.warning(result)
             else:
-
                 LOGGER.info(
                     "json :%s, jasper: %s, result: %s"
                     % (temp_json_file, input_file, output_file_pdf)
                 )
 
-                resources_folder = os.path.join(
-                    os.path.dirname(input_file), "..", "resources"
-                )
+                resources_folder = os.path.join(os.path.dirname(input_file), "..", "resources")
                 resource_files = None
                 if os.path.exists(resources_folder):
                     resource_files = resources_folder
@@ -426,15 +401,12 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
+                    config.jvm_maxmem = "4096M"
                     config.locale = (
-                        params["REPORT_LOCALE"]
-                        if "REPORT_LOCALE" in params.keys()
-                        else "es_ES"
+                        params["REPORT_LOCALE"] if "REPORT_LOCALE" in params.keys() else "es_ES"
                     )
                     config.jsonLocale = (
-                        params["JSON_LOCALE"]
-                        if "JSON_LOCALE" in params.keys()
-                        else "en_US"
+                        params["JSON_LOCALE"] if "JSON_LOCALE" in params.keys() else "en_US"
                     )
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
@@ -452,9 +424,7 @@ def launchPrinter(
                     }
                     if params:
                         for param_key, param_value in params.items():
-                            LOGGER.info(
-                                "Adding param %s = %s" % (param_key, param_value)
-                            )
+                            LOGGER.info("Adding param %s = %s" % (param_key, param_value))
                             if param_key in ["REPORT_LOCALE"]:
                                 continue
                             config.params[param_key] = param_value
@@ -469,7 +439,6 @@ def launchPrinter(
 
                     if not only_pdf:
                         for num in range(num_copies):
-
                             LOGGER.info(
                                 "Sendign copy %s, printer: %s, model: %s"
                                 % (num + 1, printer_name, model_name)
