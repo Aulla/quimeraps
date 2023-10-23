@@ -401,7 +401,7 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
-                    config.jvm_maxmem = "4096M"
+                    config.jvm_maxmem = "8192M"
                     config.locale = (
                         params["REPORT_LOCALE"] if "REPORT_LOCALE" in params.keys() else "es_ES"
                     )
