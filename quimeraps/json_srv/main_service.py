@@ -49,7 +49,7 @@ class JsonClass:
             4000,
             self.service,
             ssl_context=ssl_context_,
-            processes=4,
+            threaded=True,
         )
 
     @wrappers.Request.application  # type: ignore  [arg-type]
