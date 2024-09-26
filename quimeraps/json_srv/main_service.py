@@ -29,7 +29,6 @@ class JsonClass:
         """Start sjon service."""
         global CONN
         LOGGER.info("QuimeraPS service v.%s starts." % (__VERSION__))
-        CONN = data_module.SQLiteClass()
         ssl_context_ = None
         cert_dir = os.path.join(os.path.abspath(DATA_DIR), "cert")
 
@@ -44,12 +43,15 @@ class JsonClass:
             "Using SSL: %s, adhoc: %s, files: %s"
             % (ssl_context_ is not None, isinstance(ssl_context_, str), ssl_context_)
         )
+
+        CONN = data_module.SQLiteClass()
+
         serving.run_simple(
             "0.0.0.0",
             4000,
             self.service,
             ssl_context=ssl_context_,
-            threaded=True,
+            processes=4,
         )
 
     @wrappers.Request.application  # type: ignore  [arg-type]
@@ -59,6 +61,7 @@ class JsonClass:
         # data_request = request.data
         found_error = False
         json_response = {}
+        LOGGER.warning("aaa")
         try:
             data_response = wrappers.Response(
                 response.json, mimetype="application/json"
@@ -95,6 +98,18 @@ class JsonClass:
 
 
 @dispatcher.add_method
+def helloQuimera(**kwargs):
+    """Say hello."""
+    return {"response": "Hello ! %s" % kwargs}
+
+
+@dispatcher.add_method
+def getQuimeraLog(**kwargs):
+    """Get quimera log."""
+    return {"response": quimera_log()}
+
+
+@dispatcher.add_method
 def requestDispatcher(**kwargs):
     """Dispatch print requests."""
     return {"response": processPrintRequest(**kwargs)}
@@ -119,7 +134,10 @@ def processSync(group_name, arguments) -> bool:
     """Process sync"""
     result = ""
     try:
+        if group_name == "resources":
+            group_name = "%s/../../resources"
         sync_folder = os.path.join(os.path.abspath(DATA_DIR), group_name)
+        LOGGER.warning("Sync folder %s" % sync_folder)
         if not os.path.exists(sync_folder):
             LOGGER.warning("Making folder %s" % sync_folder)
             os.mkdir(sync_folder)
@@ -223,7 +241,6 @@ def aliveRequest() -> str:
 def dataRequest(**kwargs) -> List[Any]:
     """Return data from database connection."""
     global CONN
-
     result: str = ""
 
     # table_name = kwargs['table'] if 'table' in kwargs.keys() else ""
@@ -309,7 +326,6 @@ def printerRequest(**kwargs) -> str:
 def resolvePrinter(printer_alias: str):
     """Resolve printer name using alias."""
     global CONN
-
     printer_cursor = CONN.executeQuery(
         "SELECT name,cut,cash_drawer FROM printers WHERE alias='%s'" % printer_alias
     )
@@ -324,7 +340,6 @@ def resolvePrinter(printer_alias: str):
 def resolveModel(model_alias: str):
     """Resolve model file usign alias."""
     global CONN
-
     model_cursor = CONN.executeQuery(
         "SELECT name,copies FROM models WHERE alias='%s'" % model_alias
     )
@@ -420,17 +435,19 @@ def launchPrinter(
                 result = "JSON file (%s) doesn't exists!" % temp_json_file
                 LOGGER.warning(result)
             else:
-                LOGGER.info(
-                    "json :%s, jasper: %s, result: %s"
-                    % (temp_json_file, input_file, output_file_pdf)
-                )
 
-                resources_folder = os.path.join(
-                    os.path.dirname(input_file), "..", "resources"
+                # LOGGER.info("Starting...")
+                # LOGGER.info("JSON: %s" % temp_json_file)
+                # LOGGER.info("JASPER: %s" % input_file)
+                # LOGGER.info("OUTPUT: %s" % output_file_pdf)
+
+                resources_folder = os.path.abspath(
+                    os.path.join(os.path.dirname(input_file), "..", "..", "resources")
                 )
                 resource_files = None
                 if os.path.exists(resources_folder):
-                    resource_files = resources_folder
+                    resource_files = os.path.abspath(resources_folder)
+                    # LOGGER.info("** Using resources folder %s" % resource_files)
                 try:
                     config = jasper_config.Config()
                     config.input = input_file
@@ -463,18 +480,18 @@ def launchPrinter(
                     }
                     if params:
                         for param_key, param_value in params.items():
-                            LOGGER.info(
-                                "Adding param %s = %s" % (param_key, param_value)
-                            )
+                            # LOGGER.debug(
+                            #    "Adding param %s = %s" % (param_key, param_value)
+                            # )
                             if param_key in ["REPORT_LOCALE"]:
                                 continue
                             config.params[param_key] = param_value
 
-                    LOGGER.info("Starting reports server %s" % config.input)
+                    # LOGGER.info("Starting reports server %s" % config.input)
                     instance = report.Report(config, config.input)
-                    LOGGER.info("Filling %s" % config.input)
-                    LOGGER.warning("Default locale %s" % instance.defaultLocale)
-                    LOGGER.warning("Current locale %s" % instance.config.locale)
+                    LOGGER.info("Using %s to fill %s" % (temp_json_file, config.input))
+                    # LOGGER.warning("Default locale %s" % instance.defaultLocale)
+                    # LOGGER.warning("Current locale %s" % instance.config.locale)
                     instance.fill()
                     instance.export_pdf()
 
@@ -504,10 +521,12 @@ def launchPrinter(
                             file_cut.close()
                             result = sendToPrinter(printer_name, temp_open_file)
                     result = output_file_pdf
+
                 except Exception as error:
-                    result = "Error: %s" % str(error)
+                    result = "Error: %s. Saliendo" % str(error)
                     LOGGER.warning(result)
-    LOGGER.info(result)
+                    raise Exception(result)
+    # LOGGER.info(result)
     return result
 
 
@@ -543,3 +562,20 @@ def sendToPrinter(printer: str, file_name):
             result = str(error)
 
     return result
+
+
+def quimera_log():
+    """Recoge los datos del fichero /var/log/quimeraps.log y los devuevle en base64"""
+
+    file_name = "/var/log/quimeraps.log"
+    try:
+        if os.path.exists(file_name):
+            with open(file_name, "rb") as f:
+                log_data = f.read()
+        else:
+            log_data = b"No existe el fichero %s" % file_name
+
+    except Exception as e:
+        log_data = str(e).encode()
+
+    return base64.b64encode(log_data).decode()
