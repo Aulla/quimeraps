@@ -160,7 +160,7 @@ def processSync(group_name, arguments) -> bool:
                 config.writeJasper = True
                 instance = report.Report(config, file_path)
                 instance.compile()
-            result = "Fichero %s instaladado" % file_path
+            # result = "Fichero %s instalado" % file_path
 
     except Exception as error:
         result = str(error)
