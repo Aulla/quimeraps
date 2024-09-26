@@ -61,7 +61,6 @@ class JsonClass:
         # data_request = request.data
         found_error = False
         json_response = {}
-        LOGGER.warning("aaa")
         try:
             data_response = wrappers.Response(
                 response.json, mimetype="application/json"
