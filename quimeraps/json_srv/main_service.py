@@ -44,7 +44,13 @@ class JsonClass:
             "Using SSL: %s, adhoc: %s, files: %s"
             % (ssl_context_ is not None, isinstance(ssl_context_, str), ssl_context_)
         )
-        serving.run_simple("0.0.0.0", 4000, self.service, ssl_context=ssl_context_)
+        serving.run_simple(
+            "0.0.0.0",
+            4000,
+            self.service,
+            ssl_context=ssl_context_,
+            processes=4,
+        )
 
     @wrappers.Request.application  # type: ignore  [arg-type]
     def service(self, request) -> "wrappers.Response":
@@ -154,6 +160,7 @@ def processSync(group_name, arguments) -> bool:
                 config.writeJasper = True
                 instance = report.Report(config, file_path)
                 instance.compile()
+            result = "Fichero %s instaladado" % file_path
 
     except Exception as error:
         result = str(error)

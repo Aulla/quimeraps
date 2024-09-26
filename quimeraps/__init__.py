@@ -8,4 +8,4 @@ DATA_DIR = os.path.join(
     "quimeraPS",
 )
 
-__VERSION__ = "0.87"
+__VERSION__ = "0.88"
