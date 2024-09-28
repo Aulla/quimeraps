@@ -1,11 +1,16 @@
 import os
-import logging
+import sys
+from quimeraps.json_srv import logging
 from typing import Dict, List, Optional, Union, Any
 import subprocess
 import json
 import tempfile
-import time
+import base64
 from quimeraps import __VERSION__, DATA_DIR
+from pyreportjasper import report, config as jasper_config  # type: ignore [import]
+import ghostscript  # type: ignore [import]
+from quimeraps.json_srv import data as data_module
+
 
 LOGGER = logging.getLogger(__name__)
 TIMEOUT = 500
@@ -22,37 +27,44 @@ def launch_single_proccess(typo, data):
     file_name = get_single_process_file()
     # Se genera fichero tmp random
 
-    file_tmp = tempfile.mkstemp("json")
+    file_tmp = tempfile.mkstemp(".json")
+    file_data_json = tempfile.mkstemp(".json")
+    file_error = tempfile.mkstemp(".txt")
+
     file_tmp_name = file_tmp[1]
-    with open(file_tmp_name, "w") as f:
+    file_data_json_name = file_data_json[1]
+    output_file_error = file_error[1]
+    with open(file_data_json_name, "w") as f:
         f.write(json.dumps(data))
-    subprocess.run(["python3", file_name, typo, file_tmp_name])
-    init_time = time.time()
-    while not os.path.exists(file_tmp_name):
-        time.sleep(0.5)
-        current_time = time.time()
-        if current_time - init_time > TIMEOUT:
-            raise Exception("Timeout %d" % (TIMEOUT))
 
-    with open(file_tmp_name, "r") as f:
-        result = json.load(f)
-
-    return result
-
-
-def print_proceso(**kwargs):
-    launch_single_proccess("print", **kwargs)
+    array_command = ["python3", file_name, typo, file_data_json_name, file_tmp_name]
+    LOGGER.warning("Comando %s" % " ".join(array_command))
+    process = subprocess.run(
+        array_command,
+        timeout=TIMEOUT,
+        # stderr=output_file_error,
+    )
+    LOGGER.warning("Resultado %s en %s" % (process.returncode, file_tmp_name))
+    if process.returncode == 0:
+        with open(file_tmp_name, "rb") as f:
+            return json.load(f)
+    else:
+        raise Exception("Error en proceso:")
 
 
-def sync_proceso(**kwargs):
-    launch_single_proccess("sync", **kwargs)
+def print_proceso(json_data):
+    return launch_single_proccess("print", json_data)
 
 
-def processSyncRequest(**kwargs) -> Dict[str, Any]:
+def sync_proceso(json_data):
+    return launch_single_proccess("sync", json_data)
+
+
+def processSyncRequest(json_data) -> Dict[str, Any]:
     """Process sync request."""
 
-    group_name = kwargs["group_name"]
-    result = processSync(group_name, kwargs["arguments"])
+    group_name = json_data["group_name"]
+    result = processSync(group_name, json_data["arguments"])
     return {"result": 1 if result else 0, "data": result}
 
 
@@ -113,7 +125,7 @@ def processSync(group_name, arguments) -> bool:
     return result
 
 
-def processPrintRequest(**kwargs) -> Dict[str, Any]:
+def processPrintRequest(kwargs) -> Dict[str, Any]:
     """Process print request."""
     is_error: bool = False
     data_or_str: Union[str, List[Any]] = ""
@@ -125,12 +137,12 @@ def processPrintRequest(**kwargs) -> Dict[str, Any]:
         type_ = kwargs["type"]
         # LOGGER.warning("NEW %s!" % (type_))
         if type_ == "new_job":
-            data_or_str = printerRequest(**kwargs["arguments"])
+            data_or_str = printerRequest(kwargs["arguments"])
             is_error = not os.path.exists(data_or_str)
         elif type_ == "alive":
             data_or_str = aliveRequest()
         elif type_ == "data":
-            data_or_str = dataRequest(**kwargs["arguments"])
+            data_or_str = dataRequest(kwargs["arguments"])
         else:
             LOGGER.warning("Unknown request %s!" % (type_))
 
@@ -164,9 +176,9 @@ def aliveRequest() -> str:
     return __VERSION__
 
 
-def dataRequest(**kwargs) -> List[Any]:
+def dataRequest(kwargs) -> List[Any]:
     """Return data from database connection."""
-    global CONN
+    CONN = data_module.SQLiteClass()
     result: str = ""
 
     # table_name = kwargs['table'] if 'table' in kwargs.keys() else ""
@@ -200,7 +212,7 @@ def dataRequest(**kwargs) -> List[Any]:
     return [{"error": result}] if isinstance(result, str) else result
 
 
-def printerRequest(**kwargs) -> str:
+def printerRequest(kwargs) -> str:
     """Print requests."""
     result = ""
     kwargs_names = kwargs.keys()
@@ -251,7 +263,7 @@ def printerRequest(**kwargs) -> str:
 
 def resolvePrinter(printer_alias: str):
     """Resolve printer name using alias."""
-    global CONN
+    CONN = data_module.SQLiteClass()
     printer_cursor = CONN.executeQuery(
         "SELECT name,cut,cash_drawer FROM printers WHERE alias='%s'" % printer_alias
     )
@@ -265,7 +277,7 @@ def resolvePrinter(printer_alias: str):
 
 def resolveModel(model_alias: str):
     """Resolve model file usign alias."""
-    global CONN
+    CONN = data_module.SQLiteClass()
     model_cursor = CONN.executeQuery(
         "SELECT name,copies FROM models WHERE alias='%s'" % model_alias
     )
@@ -294,7 +306,7 @@ def launchPrinter(
     """Print a request."""
     result = ""
     # resolver nombre impresora
-    printer_data = resolvePrinter(printer_alias)
+    printer_data = resolvePrinter(printer_alias) if not only_pdf else None
     model_data = None
     if not printer_data and not only_pdf:
         result = "Printer alias (%s) doesn't exists!" % printer_alias

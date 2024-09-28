@@ -1,25 +1,50 @@
 """main_service module."""
 
 import os
-import tempfile
-import locale
 import sys
-import json
-import base64
 from typing import Dict, List, Optional, Union, Any
-from werkzeug import serving, wrappers
 
-from pyreportjasper import report, config as jasper_config  # type: ignore [import]
-import ghostscript  # type: ignore [import]
-from jsonrpc import JSONRPCResponseManager, dispatcher  # type: ignore [import]
-from quimeraps.json_srv import data as data_module
+import multiprocessing
+
+from quimeraps.json_srv.utils import format_response, load_data
+
 from quimeraps.json_srv import logging, process_functions
 from quimeraps import __VERSION__, DATA_DIR
+from fastapi import FastAPI
+import gunicorn.app.base
+import json
 
+POOL = None
 
-CONN: "data_module.SQLiteClass"
-
+app = FastAPI()
 LOGGER = logging.getLogger(__name__)
+
+
+def number_of_workers():
+    return (multiprocessing.cpu_count() * 2) + 1
+
+
+def pre_fork(server, worker):
+    print(f"pre-fork server {server} worker {worker}", file=sys.stderr)
+
+
+class StandaloneApplication(gunicorn.app.base.BaseApplication):
+    def __init__(self, app_uri, options=None):
+        self.options = options or {}
+        self.app_uri = app_uri
+        super().__init__()
+
+    def load_config(self):
+        config = {
+            key: value
+            for key, value in self.options.items()
+            if key in self.cfg.settings and value is not None
+        }
+        for key, value in config.items():
+            self.cfg.set(key.lower(), value)
+
+    def load(self):
+        return service
 
 
 class JsonClass:
@@ -27,7 +52,8 @@ class JsonClass:
 
     def run(self):
         """Start JSON service."""
-        global CONN
+        global POOL
+
         LOGGER.info("QuimeraPS service v.%s starts." % (__VERSION__))
         ssl_context_ = None
         cert_dir = os.path.join(os.path.abspath(DATA_DIR), "cert")
@@ -44,77 +70,86 @@ class JsonClass:
             % (ssl_context_ is not None, isinstance(ssl_context_, str), ssl_context_)
         )
 
-        CONN = data_module.SQLiteClass()
+        options = {
+            "bind": "0.0.0.0:4001",
+            "workers": number_of_workers(),
+            "pre_fork": pre_fork,
+        }
 
-        serving.run_simple(
-            "0.0.0.0",
-            4000,
-            self.service,
-            ssl_context=ssl_context_,
-            processes=4,
-        )
-
-    @wrappers.Request.application  # type: ignore  [arg-type]
-    def service(self, request) -> "wrappers.Response":
-        """Json service."""
-        response = JSONRPCResponseManager.handle(request.data, dispatcher)
-        # data_request = request.data
-        found_error = False
-        json_response = {}
         try:
-            data_response = wrappers.Response(
-                response.json, mimetype="application/json"
-            )
-            json_response = json.loads(data_response.response[0])
-            # LOGGER.warning("Request: %s, Response: %s" % (request.data, json_response))
-            if "result" not in json_response:
-                found_error = True
-                LOGGER.warning(
-                    "Error resolving request: %s,data_received: %s, dispatcher: %s, data_response: %s "
-                    % (request, request.data, dispatcher, data_response.response[0])
-                )
-            elif json_response["result"]["response"]["result"] == 1:
-                found_error = 1
 
-        except Exception as error:
-            data_response = wrappers.Response(
-                {"error": error}, mimetype="application/json"
-            )
-            LOGGER.warning("Error %s" % str(error))
-            found_error = True
-        # TODO: meterlo en historial data_request y data response.
-        data_response.access_control_allow_origin = "*"
-        data_response.access_control_allow_methods = ["POST", "OPTIONS"]
-        data_response.access_control_allow_headers = ["Content-Type"]
-        if found_error:
-            data_response.status_code = 400
-
-        return data_response
+            StandaloneApplication(app, options).run()
+        except KeyboardInterrupt:
+            POOL.close()
+            POOL.join()
 
     def __del__(self):
         """Delete proccess."""
         LOGGER.info("QuimeraPS service stops.")
 
 
-@dispatcher.add_method
+def service(environ, start_response):
+    """Simplest possible application object"""
+    input: "gunicorn.http.body.Body" = environ["wsgi.input"]
+    data_bytes = input.read()
+    result = entry_points(json.loads(data_bytes))
+    status = "200 OK" if "result" in result else "400 Bad Request"
+    response_bytes = json.dumps(result).encode()
+
+    response_headers = [
+        ("Content-type", "text/plain"),
+        ("Content-Length", str(len(response_bytes))),
+        ("Access-Control-Allow-Origin", "*"),
+        ("Access-Control-Allow-Headers", "*"),
+        ("Access-Control-Allow-Methods", "*"),
+    ]
+
+    start_response(status, response_headers)
+
+    return iter([response_bytes])
+
+
+def entry_points(data):
+
+    meth = data["method"]
+    params = data["params"]
+    json_response = None
+    try:
+        if meth == "helloQuimera":
+            json_response = helloQuimera(**params)
+        elif meth == "getQuimeraLog":
+            json_response = getQuimeraLog(**params)
+        elif meth == "requestDispatcher":
+            json_response = requestDispatcher(**params)
+        elif meth == "syncDispatcher":
+            json_response = syncDispatcher(**params)
+        else:
+            json_response = {"result": "Method not found"}
+    except Exception as error:
+        json_response = {"result": str(error)}
+
+    if "response" not in json_response:
+        LOGGER.warning("Error resolving request: %s" % data)
+        json_response = {"error": json_response}
+
+    return {"result": json_response}
+
+
 def helloQuimera(**kwargs):
     """Say hello."""
     return {"response": "Hello ! %s" % kwargs}
 
 
-@dispatcher.add_method
 def getQuimeraLog(**kwargs):
     """Get quimera log."""
     return {"response": process_functions.quimera_log()}
 
 
-@dispatcher.add_method
 def requestDispatcher(**kwargs):
     """Dispatch print requests."""
     return {"response": process_functions.print_proceso(kwargs)}
 
 
-@dispatcher.add_method
 def syncDispatcher(**kwargs):
     """Dispatch sync requests."""
 
