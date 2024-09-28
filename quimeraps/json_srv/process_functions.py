@@ -380,7 +380,7 @@ def launchPrinter(
                 # LOGGER.info("OUTPUT: %s" % output_file_pdf)
 
                 resources_folder = os.path.abspath(
-                    os.path.join(os.path.dirname(input_file), "..", "..", "resources")
+                    os.path.join(os.path.dirname(input_file), "..", "resources")
                 )
                 resource_files = None
                 if os.path.exists(resources_folder):
