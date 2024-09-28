@@ -385,7 +385,7 @@ def launchPrinter(
                 resource_files = None
                 if os.path.exists(resources_folder):
                     resource_files = os.path.abspath(resources_folder)
-                    # LOGGER.info("** Using resources folder %s" % resource_files)
+                    LOGGER.info("** RESOURCES FOLDER: %s" % resource_files)
                 try:
                     config = jasper_config.Config()
                     config.input = input_file
