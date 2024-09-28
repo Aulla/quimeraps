@@ -73,7 +73,7 @@ def processSync(group_name, arguments) -> bool:
     result = ""
     try:
         if group_name == "resources":
-            group_name = "%s/../../resources"
+            group_name = "%s/../resources"
         sync_folder = os.path.join(os.path.abspath(DATA_DIR), group_name)
         LOGGER.warning("Sync folder %s" % sync_folder)
         if not os.path.exists(sync_folder):
