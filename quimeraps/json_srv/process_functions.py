@@ -6,6 +6,7 @@ import subprocess
 import json
 import tempfile
 import base64
+import locale
 from quimeraps import __VERSION__, DATA_DIR
 from pyreportjasper import report, config as jasper_config  # type: ignore [import]
 import ghostscript  # type: ignore [import]
@@ -391,7 +392,7 @@ def launchPrinter(
                     config.input = input_file
                     config.output = output_file
                     config.dataFile = temp_json_file
-                    config.jvm_maxmem = "8192M"
+                    config.jvm_maxmem = "16384M"
                     config.locale = (
                         params["REPORT_LOCALE"]
                         if "REPORT_LOCALE" in params.keys()
@@ -431,8 +432,10 @@ def launchPrinter(
                     # LOGGER.warning("Default locale %s" % instance.defaultLocale)
                     # LOGGER.warning("Current locale %s" % instance.config.locale)
                     instance.fill()
+                    LOGGER.info("Filling done")
+                    LOGGER.info("Exporting to PDF")
                     instance.export_pdf()
-
+                    LOGGER.info("Export done")
                     if not only_pdf:
                         for num in range(num_copies):
                             LOGGER.info(
