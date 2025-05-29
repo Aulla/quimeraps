@@ -74,6 +74,7 @@ class JsonClass:
             "bind": "0.0.0.0:4000",
             "workers": number_of_workers(),
             "pre_fork": pre_fork,
+            "timeout": process_functions.TIMEOUT,
         }
 
         try:
@@ -129,7 +130,7 @@ def entry_points(data):
         json_response = {"result": str(error)}
 
     if "response" not in json_response:
-        LOGGER.warning("Error resolving request: %s" % data)
+        LOGGER.warning("Error resolving request when %s : %s" % (meth, data))
         json_response = {"error": json_response}
 
     return {"result": json_response}

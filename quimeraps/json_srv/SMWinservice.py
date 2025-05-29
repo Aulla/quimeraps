@@ -1,12 +1,12 @@
 """
  SMWinservice
  by Davide Mastromatteo
- 
+
  Base class to create winservice in Python
  -----------------------------------------
- 
+
  Instructions:
- 
+
 1. Just create a new class that inherits from this base class
 2. Define into the new class the variables
    _svc_name_ = "nameOfWinservice"
@@ -21,6 +21,7 @@
 4. Define the entry point of your module calling the method "parse_command_line" of the new class
 5. Enjoy
 """
+
 import socket
 
 import win32serviceutil
@@ -50,7 +51,7 @@ class SMWinservice(win32serviceutil.ServiceFramework):
         """
         win32serviceutil.ServiceFramework.__init__(self, args)
         self.hWaitStop = win32event.CreateEvent(None, 0, 0, None)
-        socket.setdefaulttimeout(60)
+        socket.setdefaulttimeout(120)
 
     def SvcStop(self):
         """
