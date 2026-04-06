@@ -51,6 +51,8 @@ def ejecutar_tarea():
             result = process_functions.processPrintRequest(data)
         elif mode == "sync":
             result = process_functions.processSyncRequest(data)
+        elif mode == "check_tmp":
+            result = process_functions.processTmpCheckRequest(data)
         else:
             print("Modo no válido")
             sys.exit(1)

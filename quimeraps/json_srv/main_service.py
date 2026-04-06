@@ -142,6 +142,8 @@ def entry_points(data):
             json_response = requestDispatcher(**params)
         elif meth == "syncDispatcher":
             json_response = syncDispatcher(**params)
+        elif meth == "checkTmpFiles":
+            json_response = checkTmpFiles(**params)
         else:
             json_response = {"result": "Method not found"}
     except Exception as error:
@@ -177,3 +179,8 @@ def syncDispatcher(**kwargs):
     """Dispatch sync requests."""
 
     return {"response": process_functions.sync_proceso(kwargs)}
+
+
+def checkTmpFiles(**kwargs):
+    """Check which tmp file IDs are missing on the server."""
+    return {"response": process_functions.check_tmp_proceso(kwargs)}

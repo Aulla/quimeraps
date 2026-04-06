@@ -7,15 +7,100 @@ import json
 import tempfile
 import base64
 import locale
+import re
+import unicodedata
 from quimeraps import __VERSION__, DATA_DIR
 from pyreportjasper import report, config as jasper_config  # type: ignore [import]
 import ghostscript  # type: ignore [import]
 from quimeraps.json_srv import data as data_module
+import jpype  # type: ignore [import]
 
 
 LOGGER = logging.getLogger(__name__)
 TIMEOUT = 500
 TIMEOUT_ERROR_CODE = "timeout_reached"
+DEFAULT_JVM_OPTS = ("--add-opens=java.base/java.net=ALL-UNNAMED",)
+
+
+def _normalize_classpath_entry(path: str) -> str:
+    normalized = os.path.abspath(path)
+    if normalized.endswith(os.sep + "*"):
+        normalized = normalized[: -len(os.sep + "*")]
+    return os.path.normcase(normalized)
+
+
+def _java_classpath_contains(path: str) -> bool:
+    if not jpype.isJVMStarted():
+        return False
+
+    java_system = jpype.JPackage("java").lang.System
+    raw_classpath = java_system.getProperty("java.class.path") or ""
+    target = _normalize_classpath_entry(path)
+    for entry in str(raw_classpath).split(os.pathsep):
+        if _normalize_classpath_entry(entry) == target:
+            return True
+    return False
+
+
+def _prepare_resource_for_report(resource_path: Optional[str]) -> Optional[str]:
+    if not resource_path or not os.path.isdir(resource_path):
+        return resource_path
+
+    if not jpype.isJVMStarted():
+        return resource_path
+
+    if _java_classpath_contains(resource_path):
+        LOGGER.info("** RESOURCE CLASSPATH: YA esta añadida %s" % resource_path)
+        return None
+
+    return resource_path
+
+
+def _build_exception_debug_message(
+    error: Exception, resource_path: Optional[str] = None
+) -> str:
+    details = ["%s: %s" % (error.__class__.__name__, str(error))]
+
+    cause = getattr(error, "__cause__", None)
+    if cause is not None:
+        details.append("cause=%s: %s" % (cause.__class__.__name__, str(cause)))
+
+    context = []
+    if resource_path:
+        context.extend(
+            [
+                "resource_exists=%s" % os.path.exists(resource_path),
+                "resource_is_dir=%s" % os.path.isdir(resource_path),
+                "resource_in_classpath=%s" % _java_classpath_contains(resource_path),
+                "jvm_started=%s" % jpype.isJVMStarted(),
+            ]
+        )
+
+    if context:
+        details.append("context={%s}" % ", ".join(context))
+
+    return " | ".join(details)
+
+
+def normalize_group_name(group_name: Optional[str]) -> Optional[str]:
+    if group_name is None:
+        return None
+
+    normalized = unicodedata.normalize("NFKD", str(group_name))
+    normalized = normalized.encode("ascii", "ignore").decode("ascii")
+    normalized = normalized.strip()
+    normalized = re.sub(r"\s+", "_", normalized)
+    normalized = re.sub(r"[^A-Za-z0-9._-]", "_", normalized)
+    normalized = re.sub(r"_+", "_", normalized)
+    normalized = normalized.strip("._")
+    return normalized or None
+
+
+def normalize_group_name_with_log(group_name: Optional[str]) -> Optional[str]:
+    normalized = normalize_group_name(group_name)
+    if group_name != normalized:
+        LOGGER.info("Normalized group_name from %s to %s" % (group_name, normalized))
+    return normalized
 
 
 def build_timeout_error(timeout: Union[int, float]) -> Dict[str, Any]:
@@ -106,10 +191,22 @@ def sync_proceso(json_data):
     return launch_single_proccess("sync", json_data)
 
 
+def check_tmp_proceso(json_data):
+    return launch_single_proccess("check_tmp", json_data)
+
+
+def processTmpCheckRequest(json_data) -> Dict[str, Any]:
+    """Devuelve los IDs de tmp_files que NO están en /tmp del servidor."""
+    ids = json_data.get("ids", [])
+    tmp_dir = tempfile.gettempdir()
+    missing = [id_ for id_ in ids if not os.path.exists(os.path.join(tmp_dir, id_))]
+    return {"result": 0, "data": missing}
+
+
 def processSyncRequest(json_data) -> Dict[str, Any]:
     """Process sync request."""
 
-    group_name = json_data["group_name"]
+    group_name = normalize_group_name_with_log(json_data["group_name"])
     result = processSync(group_name, json_data["arguments"])
     return {"result": 1 if result else 0, "data": result}
 
@@ -128,8 +225,7 @@ def processSync(group_name, arguments) -> bool:
 
         file_type = "%ss" % arguments["file_type"]
 
-        if file_type == "tmp":
-            # carpeta tmp del s.o.
+        if file_type == "tmps":
             type_folder = tempfile.gettempdir()
         else:
             type_folder = os.path.join(sync_folder, file_type)
@@ -158,7 +254,7 @@ def processSync(group_name, arguments) -> bool:
             file = open(file_path, "wb")
             file.write(base64.decodebytes(arguments["file_data"].encode()))
             file.close()
-
+            LOGGER.warning("Fichero copiado en %s" % file_path)
             if file_type == "subreports" and file_path.endswith(".jrxml"):
                 # compilamos el subreport.
                 config = jasper_config.Config()
@@ -171,7 +267,8 @@ def processSync(group_name, arguments) -> bool:
     except Exception as error:
         result = str(error)
 
-    LOGGER.warning("devolviendo %s" % result)
+    if result:
+        LOGGER.warning("devolviendo %s" % result)
     return result
 
 
@@ -272,7 +369,11 @@ def printerRequest(kwargs) -> str:
     kwargs_names = kwargs.keys()
 
     only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
-    group_name = kwargs["group_name"] if "group_name" in kwargs_names else None
+    group_name = (
+        normalize_group_name_with_log(kwargs["group_name"])
+        if "group_name" in kwargs_names
+        else None
+    )
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
     if not only_pdf:
@@ -446,6 +547,7 @@ def launchPrinter(
                     config.output = output_file
                     config.dataFile = temp_json_file
                     config.jvm_maxmem = "16384M"
+                    config.jvm_opts = DEFAULT_JVM_OPTS
                     config.locale = (
                         params["REPORT_LOCALE"]
                         if "REPORT_LOCALE" in params.keys()
@@ -458,7 +560,7 @@ def launchPrinter(
                     )
                     config.dbType = "json"
                     config.jsonQuery = "query.registers"
-                    config.resource = resource_files
+                    config.resource = _prepare_resource_for_report(resource_files)
                     config.params = {
                         "SUBREPORT_DIR": "%s%s"
                         % (
@@ -517,7 +619,9 @@ def launchPrinter(
                     result = output_file_pdf
 
                 except Exception as error:
-                    result = "Error: %s. Saliendo" % str(error)
+                    result = "Error: %s. Saliendo" % _build_exception_debug_message(
+                        error, resource_files
+                    )
                     LOGGER.warning(result)
                     raise Exception(result)
     # LOGGER.info(result)

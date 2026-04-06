@@ -38,6 +38,17 @@ quimeraps_daemon remove
 If we want to launch a server manually through the console:
 * We must make sure that there are no other quimera servers running on the machine.
 * We run quimeraps_server with administrator privileges.
+* Optional environment variables:
+  `QUIMERAPS_PORT` to change the listening port (default `4000`).
+  `QUIMERAPS_HOST` to change the bind host (default `0.0.0.0`).
+
+Examples:
+Linux:
+`QUIMERAPS_PORT=5000 quimeraps_server`
+
+Windows:
+`set QUIMERAPS_PORT=5000`
+`quimeraps_server`
 
 
 Using reports:
@@ -61,7 +72,6 @@ Instructions for generating certificate and ssl password.
 
 $ openssl genrsa 2048 > ssl.key
 $ openssl req -new -x509 -nodes -sha1 -days 365 -key ssl.key > ssl.cert
-
 
 
 
