@@ -15,6 +15,31 @@ from quimeraps.json_srv import data as data_module
 
 LOGGER = logging.getLogger(__name__)
 TIMEOUT = 500
+TIMEOUT_ERROR_CODE = "timeout_reached"
+
+
+def build_timeout_error(timeout: Union[int, float]) -> Dict[str, Any]:
+    return {
+        "result": 1,
+        "data": "Timeout reached after %ss" % timeout,
+        "error_code": TIMEOUT_ERROR_CODE,
+    }
+
+
+def get_request_timeout(
+    data: Dict[str, Any], default: Union[int, float] = TIMEOUT
+) -> int:
+    timeout = data.get("timeout")
+    if timeout is None and isinstance(data.get("arguments"), dict):
+        timeout = data["arguments"].get("timeout")
+
+    if timeout in [None, ""]:
+        return int(default)
+
+    timeout_int = int(timeout)
+    if timeout_int <= 0:
+        raise ValueError("timeout must be greater than 0")
+    return timeout_int
 
 
 def get_single_process_file():
@@ -23,9 +48,17 @@ def get_single_process_file():
     return os.path.join(current_dir, "single_proccess.py")
 
 
+def attach_request_file_reference(
+    data: Dict[str, Any], request_file: str
+) -> Dict[str, Any]:
+    enriched_data = dict(data)
+    enriched_data["_request_file"] = request_file
+    return enriched_data
+
+
 def launch_single_proccess(typo, data):
-    global TIMEOUT
     file_name = get_single_process_file()
+    timeout = get_request_timeout(data)
     # Se genera fichero tmp random
 
     file_tmp = tempfile.mkstemp(".json")
@@ -35,22 +68,34 @@ def launch_single_proccess(typo, data):
     file_tmp_name = file_tmp[1]
     file_data_json_name = file_data_json[1]
     output_file_error = file_error[1]
+    data = attach_request_file_reference(data, file_data_json_name)
     with open(file_data_json_name, "w") as f:
         f.write(json.dumps(data))
 
-    array_command = ["python3", file_name, typo, file_data_json_name, file_tmp_name]
+    array_command = [
+        "python3",
+        file_name,
+        typo,
+        file_data_json_name,
+        file_tmp_name,
+        str(timeout),
+    ]
     LOGGER.warning("Comando %s" % " ".join(array_command))
-    process = subprocess.run(
-        array_command,
-        timeout=TIMEOUT,
-        # stderr=output_file_error,
-    )
+    try:
+        process = subprocess.run(
+            array_command,
+            timeout=timeout,
+            # stderr=output_file_error,
+        )
+    except subprocess.TimeoutExpired:
+        LOGGER.warning("Timeout reached for %s after %ss" % (typo, timeout))
+        return build_timeout_error(timeout)
     LOGGER.warning("Resultado %s en %s" % (process.returncode, file_tmp_name))
     if process.returncode == 0:
         with open(file_tmp_name, "rb") as f:
             return json.load(f)
     else:
-        raise Exception("Error en proceso:")
+        raise Exception("Error en proceso. request_file=%s" % file_data_json_name)
 
 
 def print_proceso(json_data):
@@ -83,10 +128,14 @@ def processSync(group_name, arguments) -> bool:
 
         file_type = "%ss" % arguments["file_type"]
 
-        type_folder = os.path.join(sync_folder, file_type)
-        if not os.path.exists(type_folder):
-            LOGGER.warning("Making folder %s" % type_folder)
-            os.mkdir(type_folder)
+        if file_type == "tmp":
+            # carpeta tmp del s.o.
+            type_folder = tempfile.gettempdir()
+        else:
+            type_folder = os.path.join(sync_folder, file_type)
+            if not os.path.exists(type_folder):
+                LOGGER.warning("Making folder %s" % type_folder)
+                os.mkdir(type_folder)
         file_path = os.path.join(type_folder, arguments["file_name"])
         file_path_compiled = file_path.replace(".jrxml", ".jasper")
         if arguments["file_delete"] == "1":
@@ -130,6 +179,7 @@ def processPrintRequest(kwargs) -> Dict[str, Any]:
     """Process print request."""
     is_error: bool = False
     data_or_str: Union[str, List[Any]] = ""
+    timeout = kwargs.get("timeout")
     return_base64: bool = (
         "return_base64" in kwargs.keys() and kwargs["return_base64"] == 1
     )
@@ -158,8 +208,11 @@ def processPrintRequest(kwargs) -> Dict[str, Any]:
     return {
         "result": 1 if is_error else 0,
         "data": (
-            fileToBase64(data_or_str) if return_base64 and not is_error else data_or_str
+            fileToBase64(data_or_str)
+            if return_base64 and not is_error and isinstance(data_or_str, str)
+            else data_or_str
         ),
+        **({"timeout": timeout} if timeout is not None else {}),
     }
 
 

@@ -24,6 +24,20 @@ def number_of_workers():
     return (multiprocessing.cpu_count() * 2) + 1
 
 
+def get_bind_address() -> str:
+    host = os.getenv("QUIMERAPS_HOST", "0.0.0.0")
+    port = os.getenv("QUIMERAPS_PORT", "4000")
+    try:
+        port_int = int(port)
+    except ValueError as error:
+        raise ValueError("QUIMERAPS_PORT must be an integer") from error
+
+    if port_int <= 0 or port_int > 65535:
+        raise ValueError("QUIMERAPS_PORT must be between 1 and 65535")
+
+    return "%s:%s" % (host, port_int)
+
+
 def pre_fork(server, worker):
     print(f"pre-fork server {server} worker {worker}", file=sys.stderr)
 
@@ -69,12 +83,16 @@ class JsonClass:
             "Using SSL: %s, adhoc: %s, files: %s"
             % (ssl_context_ is not None, isinstance(ssl_context_, str), ssl_context_)
         )
+        bind_address = get_bind_address()
+        LOGGER.info("Binding QuimeraPS service to %s" % bind_address)
 
         options = {
-            "bind": "0.0.0.0:4000",
+            "bind": bind_address,
             "workers": number_of_workers(),
             "pre_fork": pre_fork,
-            "timeout": process_functions.TIMEOUT,
+            # Disable Gunicorn's fixed worker timeout so per-request print timeouts
+            # can be enforced by the application layer.
+            "timeout": 0,
         }
 
         try:
@@ -130,7 +148,11 @@ def entry_points(data):
         json_response = {"result": str(error)}
 
     if "response" not in json_response:
-        LOGGER.warning("Error resolving request when %s : %s" % (meth, data))
+        request_file = None
+        if isinstance(params, dict):
+            request_file = params.get("_request_file")
+        log_ref = "request_file=%s" % request_file if request_file else "request_file=unknown"
+        LOGGER.warning("Error resolving request when %s : %s" % (meth, log_ref))
         json_response = {"error": json_response}
 
     return {"result": json_response}
