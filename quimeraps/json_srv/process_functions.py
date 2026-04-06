@@ -7,8 +7,6 @@ import json
 import tempfile
 import base64
 import locale
-import re
-import unicodedata
 from quimeraps import __VERSION__, DATA_DIR
 from pyreportjasper import report, config as jasper_config  # type: ignore [import]
 import ghostscript  # type: ignore [import]
@@ -80,27 +78,6 @@ def _build_exception_debug_message(
         details.append("context={%s}" % ", ".join(context))
 
     return " | ".join(details)
-
-
-def normalize_group_name(group_name: Optional[str]) -> Optional[str]:
-    if group_name is None:
-        return None
-
-    normalized = unicodedata.normalize("NFKD", str(group_name))
-    normalized = normalized.encode("ascii", "ignore").decode("ascii")
-    normalized = normalized.strip()
-    normalized = re.sub(r"\s+", "_", normalized)
-    normalized = re.sub(r"[^A-Za-z0-9._-]", "_", normalized)
-    normalized = re.sub(r"_+", "_", normalized)
-    normalized = normalized.strip("._")
-    return normalized or None
-
-
-def normalize_group_name_with_log(group_name: Optional[str]) -> Optional[str]:
-    normalized = normalize_group_name(group_name)
-    if group_name != normalized:
-        LOGGER.info("Normalized group_name from %s to %s" % (group_name, normalized))
-    return normalized
 
 
 def build_timeout_error(timeout: Union[int, float]) -> Dict[str, Any]:
@@ -206,7 +183,7 @@ def processTmpCheckRequest(json_data) -> Dict[str, Any]:
 def processSyncRequest(json_data) -> Dict[str, Any]:
     """Process sync request."""
 
-    group_name = normalize_group_name_with_log(json_data["group_name"])
+    group_name = json_data["group_name"]
     result = processSync(group_name, json_data["arguments"])
     return {"result": 1 if result else 0, "data": result}
 
@@ -369,11 +346,7 @@ def printerRequest(kwargs) -> str:
     kwargs_names = kwargs.keys()
 
     only_pdf = "only_pdf" in kwargs_names and kwargs["only_pdf"] == 1
-    group_name = (
-        normalize_group_name_with_log(kwargs["group_name"])
-        if "group_name" in kwargs_names
-        else None
-    )
+    group_name = kwargs["group_name"] if "group_name" in kwargs_names else None
     pdf_name = kwargs["pdf_name"] if "pdf_name" in kwargs_names else None
 
     if not only_pdf:
