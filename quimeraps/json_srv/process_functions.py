@@ -168,15 +168,35 @@ def sync_proceso(json_data):
     return launch_single_proccess("sync", json_data)
 
 
+def resolve_tmp_folder(folder_param: str, sync_folder: str = "") -> str:
+    """Devuelve la ruta absoluta de la carpeta de ficheros temporales.
+
+    Reglas:
+    - Vacío o solo espacios  → tempdir del sistema (/tmp en Linux)
+    - Ruta absoluta (/... o X:\\...) → se usa tal cual
+    - Ruta relativa          → se resuelve como sync_folder/folder_param
+                               (si sync_folder está vacío, usa tempdir)
+    """
+    folder = (folder_param or "").strip()
+    if not folder:
+        return tempfile.gettempdir()
+    if folder.startswith("/") or (len(folder) > 1 and folder[1] == ":"):
+        return folder
+    if sync_folder:
+        return os.path.join(sync_folder, folder)
+    return tempfile.gettempdir()
+
+
 def check_tmp_proceso(json_data):
     return launch_single_proccess("check_tmp", json_data)
 
 
 def processTmpCheckRequest(json_data) -> Dict[str, Any]:
-    """Devuelve los IDs de tmp_files que NO están en /tmp del servidor."""
+    """Devuelve los IDs de tmp_files que NO están en la carpeta indicada."""
     ids = json_data.get("ids", [])
-    tmp_dir = tempfile.gettempdir()
-    missing = [id_ for id_ in ids if not os.path.exists(os.path.join(tmp_dir, id_))]
+    folder = resolve_tmp_folder(json_data.get("folder", ""))
+    missing = [id_ for id_ in ids if not os.path.exists(os.path.join(folder, id_))]
+    LOGGER.warning("checkTmpFiles folder=%s ids=%d missing=%d" % (folder, len(ids), len(missing)))
     return {"result": 0, "data": missing}
 
 
@@ -201,6 +221,32 @@ def processSync(group_name, arguments) -> bool:
             os.mkdir(sync_folder)
 
         file_type = "%ss" % arguments["file_type"]
+
+        if file_type == "tmps_zips":
+            import io, zipfile as _zipfile
+            dest_folder = resolve_tmp_folder(arguments.get("folder", ""), sync_folder)
+            os.makedirs(dest_folder, exist_ok=True)
+            zip_bytes = base64.decodebytes(arguments["file_data"].encode())
+            zip_buf = io.BytesIO(zip_bytes)
+            if not _zipfile.is_zipfile(io.BytesIO(zip_bytes)):
+                result = "tmps_zip: el contenido recibido no es un ZIP válido"
+                LOGGER.warning(result)
+                return result
+            try:
+                with _zipfile.ZipFile(zip_buf) as zf:
+                    names = zf.namelist()
+                    zf.extractall(dest_folder)
+            except Exception as zip_err:
+                result = "tmps_zip: error al extraer ZIP en %s: %s" % (dest_folder, zip_err)
+                LOGGER.warning(result)
+                return result
+            finally:
+                zip_buf.close()
+            LOGGER.warning("ZIP extraído en %s | %d ficheros:" % (dest_folder, len(names)))
+            for n in names:
+                LOGGER.warning("  -> %s" % os.path.join(dest_folder, n))
+            LOGGER.warning("ZIP procesado en memoria, sin fichero en disco que borrar")
+            return result
 
         if file_type == "tmps":
             type_folder = tempfile.gettempdir()
@@ -369,6 +415,8 @@ def printerRequest(kwargs) -> str:
         if "open_cash_drawer" not in kwargs_names:
             kwargs["open_cash_drawer"] = False
 
+        delete_tmp_after = kwargs.get("delete_tmp_after", [])
+        delete_tmp_folder = kwargs.get("delete_tmp_folder", "")
         try:
             result = launchPrinter(
                 kwargs["printer"] if not only_pdf else "",
@@ -382,8 +430,11 @@ def printerRequest(kwargs) -> str:
                 kwargs["report_name"],
                 kwargs["params"] if "params" in kwargs_names else {},
                 int(kwargs["copies"]) if "copies" in kwargs_names else None,
+                delete_tmp_after,
+                delete_tmp_folder,
             )
         except Exception as error:
+            _delete_tmp_files(delete_tmp_after, delete_tmp_folder)
             result = str(error)
 
     return result
@@ -418,6 +469,24 @@ def resolveModel(model_alias: str):
     return None
 
 
+def _delete_tmp_files(names: list, folder: str = "") -> None:
+    """Borra ficheros temporales del listado e informa en el log."""
+    if not names:
+        return
+    tmp_dir = resolve_tmp_folder(folder)
+    LOGGER.warning("_delete_tmp_files: borrando %d fichero(s) en %s" % (len(names), tmp_dir))
+    for name in names:
+        path = os.path.join(tmp_dir, name)
+        try:
+            if os.path.exists(path):
+                os.remove(path)
+                LOGGER.warning("  borrado: %s" % path)
+            else:
+                LOGGER.warning("  no existe (ya borrado?): %s" % path)
+        except OSError as e:
+            LOGGER.warning("  error al borrar %s: %s" % (path, e))
+
+
 def launchPrinter(
     printer_alias: str,
     model_alias: str,
@@ -430,6 +499,8 @@ def launchPrinter(
     model_name="",
     params: Dict = {},
     copies: Optional[int] = None,
+    delete_tmp_after: list = [],
+    delete_tmp_folder: str = "",
 ) -> str:
     """Print a request."""
     result = ""
@@ -590,8 +661,10 @@ def launchPrinter(
                             file_cut.close()
                             result = sendToPrinter(printer_name, temp_open_file)
                     result = output_file_pdf
+                    _delete_tmp_files(delete_tmp_after, delete_tmp_folder)
 
                 except Exception as error:
+                    _delete_tmp_files(delete_tmp_after, delete_tmp_folder)
                     result = "Error: %s. Saliendo" % _build_exception_debug_message(
                         error, resource_files
                     )
