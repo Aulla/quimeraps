@@ -218,7 +218,7 @@ def processSync(group_name, arguments) -> bool:
         LOGGER.warning("Sync folder %s" % sync_folder)
         if not os.path.exists(sync_folder):
             LOGGER.warning("Making folder %s" % sync_folder)
-            os.mkdir(sync_folder)
+            os.makedirs(sync_folder)
 
         file_type = "%ss" % arguments["file_type"]
 
@@ -254,7 +254,7 @@ def processSync(group_name, arguments) -> bool:
             type_folder = os.path.join(sync_folder, file_type)
             if not os.path.exists(type_folder):
                 LOGGER.warning("Making folder %s" % type_folder)
-                os.mkdir(type_folder)
+                os.makedirs(type_folder)
         file_path = os.path.join(type_folder, arguments["file_name"])
         file_path_compiled = file_path.replace(".jrxml", ".jasper")
         if arguments["file_delete"] == "1":
@@ -542,7 +542,7 @@ def launchPrinter(
         )
         if not os.path.exists(reports_dir):
             LOGGER.warning("Making reports folder (%s)" % reports_dir)
-            os.mkdir(reports_dir)
+            os.makedirs(reports_dir)
 
         input_file = "%s" % os.path.join(reports_dir, "%s" % model_name)
         if not input_file.lower().endswith(".jrxml"):
